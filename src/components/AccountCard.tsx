@@ -7,11 +7,6 @@ const LABELS: Record<Account["type"], string> = {
   salak: "สลากดิจิทัล",
 };
 
-const GRADIENTS: Record<Account["type"], string> = {
-  savings: "var(--gradient-savings)",
-  salak: "var(--gradient-salak)",
-};
-
 export function AccountCard({ account }: { account: Account }) {
   // Salak accounts have their own richer overview screen; everything else
   // (just savings, for now) goes to its plain transaction ledger.
@@ -22,22 +17,19 @@ export function AccountCard({ account }: { account: Account }) {
       <Link
         to={destination}
         data-testid="account-history-link"
-        className="block rounded-2xl p-4 text-white shadow-[var(--shadow-card)]"
-        style={{ backgroundImage: GRADIENTS[account.type] }}
+        className={`gradient-card gradient-card--${account.type}`}
       >
-        <div className="flex items-start justify-between">
+        <div className="gradient-card__top">
           <div>
-            <p className="text-[15px] font-bold">{LABELS[account.type]}</p>
-            <p className="mt-0.5 text-xs opacity-90" data-testid="account-number">
+            <p className="gradient-card__label">{LABELS[account.type]}</p>
+            <p className="gradient-card__meta" data-testid="account-number">
               {maskAccountNumber(account.account_number)}
             </p>
           </div>
           <ArrowIcon className="h-[18px] w-[18px] opacity-90" />
         </div>
-        <p className="mt-[18px] text-[11px] font-semibold tracking-wider opacity-85">คงเหลือ</p>
-        <p className="font-bold tabular-nums" style={{ fontSize: 24 }}>
-          ฿{formatTHB(account.balance)}
-        </p>
+        <p className="gradient-card__eyebrow">คงเหลือ</p>
+        <p className="gradient-card__balance">฿{formatTHB(account.balance)}</p>
       </Link>
     </div>
   );

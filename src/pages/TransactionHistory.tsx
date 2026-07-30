@@ -33,28 +33,30 @@ export function TransactionHistory() {
   return (
     <AppShell showNav={false}>
       <PageHeader title="รายการเดินบัญชี" />
-      <div className="space-y-3 p-4">
+      <div className="flex flex-col gap-3 p-4">
         {account && (
-          <p className="text-sm text-neutral">
+          <p className="text-muted">
             {maskAccountNumber(account.account_number)} · ยอดคงเหลือ ฿{formatTHB(account.balance)}
           </p>
         )}
-        {error && <p className="text-sm text-error">{error}</p>}
-        {transactions === null && !error && <p className="text-sm text-neutral">กำลังโหลด...</p>}
-        {transactions?.length === 0 && (
-          <p className="rounded-xl bg-white p-4 text-sm text-neutral">ยังไม่มีรายการเดินบัญชี</p>
-        )}
+        {error && <p className="message">{error}</p>}
+        {transactions === null && !error && <p className="text-muted">กำลังโหลด...</p>}
+        {transactions?.length === 0 && <p className="empty-state">ยังไม่มีรายการเดินบัญชี</p>}
         {transactions?.map((txn) => (
-          <Card key={txn.id} data-testid="transaction-row" className="flex items-center justify-between">
+          <Card key={txn.id} data-testid="transaction-row" className="transaction-row">
             <div>
-              <p className="text-sm font-medium text-ink">{txn.description}</p>
-              <p className="mt-1 text-xs text-neutral">{formatDate(txn.created_at)}</p>
+              <p className="transaction-row__desc">{txn.description}</p>
+              <p className="transaction-row__date">{formatDate(txn.created_at)}</p>
             </div>
-            <div className="text-right">
-              <p className={`font-semibold ${txn.type === "credit" ? "text-success" : "text-error"}`}>
+            <div>
+              <p
+                className={`transaction-row__amount ${
+                  txn.type === "credit" ? "transaction-row__amount--credit" : "transaction-row__amount--debit"
+                }`}
+              >
                 {txn.type === "credit" ? "+" : "-"}฿{formatTHB(txn.amount)}
               </p>
-              <p className="text-xs text-neutral">คงเหลือ ฿{formatTHB(txn.balance_after)}</p>
+              <p className="transaction-row__balance">คงเหลือ ฿{formatTHB(txn.balance_after)}</p>
             </div>
           </Card>
         ))}

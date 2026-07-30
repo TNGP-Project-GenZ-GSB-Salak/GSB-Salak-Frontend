@@ -6,22 +6,22 @@ import { formatDate, formatTHB } from "../lib/format";
 // weight: white text over a warm gradient, radius/shadow/type scale match).
 export function HoldingCard({ holding }: { holding: Holding }) {
   return (
-    <div
-      data-testid="holding-row"
-      className="flex items-center justify-between gap-3 rounded-2xl p-4 text-white shadow-[var(--shadow-card)]"
-      style={{ backgroundImage: "var(--gradient-salak)" }}
-    >
+    <div data-testid="holding-row" className="holding-card">
       <div className="flex-1">
-        <p className="text-[15px] font-semibold">{holding.product_name}</p>
-        <p className="mt-[3px] text-[13px] font-semibold">
+        <p className="holding-card__name">{holding.product_name}</p>
+        <p className="holding-card__line">
           {holding.ticket_start} – {holding.ticket_end}
         </p>
-        <p className="mt-[3px] text-[13px] opacity-85">ซื้อเมื่อ {formatDate(holding.purchase_date)}</p>
-        <p className="mt-[3px] text-[13px] opacity-85">ครบกำหนด {formatDate(holding.maturity_date)}</p>
+        <p className="holding-card__line holding-card__line--muted">
+          ซื้อเมื่อ {formatDate(holding.purchase_date)}
+        </p>
+        <p className="holding-card__line holding-card__line--muted">
+          ครบกำหนด {formatDate(holding.maturity_date)}
+        </p>
       </div>
-      <div className="text-right">
-        <p className="text-[16px] font-bold">฿{formatTHB(holding.purchase_amount)}</p>
-        <p className="mt-0.5 text-xs opacity-85">{holding.units} หน่วย</p>
+      <div>
+        <p className="holding-card__amount">฿{formatTHB(holding.purchase_amount)}</p>
+        <p className="holding-card__units">{holding.units} หน่วย</p>
       </div>
     </div>
   );

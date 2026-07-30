@@ -15,37 +15,37 @@ export function PageHeader({ title, variant = "back", onAction }: PageHeaderProp
 
   if (variant === "back") {
     return (
-      <header className="flex items-center bg-white px-2 pb-2 pt-7">
+      <header className="page-header">
         <button
           type="button"
           onClick={handleAction}
           aria-label="ย้อนกลับ"
           data-testid="back-button"
-          className="flex h-10 w-10 shrink-0 items-center justify-center text-ink"
+          className="page-header__button"
         >
           <BackIcon className="h-[22px] w-[22px]" />
         </button>
-        <h1 className="mr-10 flex-1 text-center text-[17px] font-bold text-ink">{title}</h1>
+        <h1 className="page-header__title page-header__title--back">{title}</h1>
       </header>
     );
   }
 
   return (
-    <header className="flex items-center bg-white px-2 pb-2 pt-7">
-      <div className="h-10 w-10 shrink-0" />
-      <h1 className="flex-1 text-center text-[18px] font-bold text-ink">{title}</h1>
+    <header className="page-header">
+      <div className="page-header__spacer" />
+      <h1 className="page-header__title page-header__title--plain">{title}</h1>
       {variant === "close" ? (
         <button
           type="button"
           onClick={handleAction}
           aria-label="ปิด"
           data-testid="back-button"
-          className="flex h-10 w-10 shrink-0 items-center justify-center text-ink"
+          className="page-header__button"
         >
           <CloseIcon className="h-7 w-7" />
         </button>
       ) : (
-        <div className="h-10 w-10 shrink-0" />
+        <div className="page-header__spacer" />
       )}
     </header>
   );

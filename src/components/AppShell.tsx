@@ -10,8 +10,8 @@ interface AppShellProps {
 // router); this just adds bottom-nav clearance for pages that show it.
 export function AppShell({ children, showNav = true }: AppShellProps) {
   return (
-    <div className="flex flex-1 flex-col">
-      <main className={`flex-1 ${showNav ? "pb-20" : ""}`}>{children}</main>
+    <div className="app-shell">
+      <main className={`app-shell__main ${showNav ? "app-shell__main--with-nav" : ""}`}>{children}</main>
       {showNav && <BottomNav />}
     </div>
   );

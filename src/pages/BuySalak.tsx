@@ -91,7 +91,7 @@ export function BuySalak() {
     return (
       <AppShell showNav={false}>
         <PageHeader title="ทำรายการสำเร็จ" variant="plain" />
-        <div className="space-y-4 p-4">
+        <div className="flex flex-col gap-4 p-4">
           <ReceiptSummary receipt={receipt} />
           <Button onClick={() => navigate("/salak")}>เสร็จสิ้น</Button>
         </div>
@@ -111,36 +111,34 @@ export function BuySalak() {
         <PageHeader title="ซื้อสลากดิจิทัล" variant="close" onAction={() => navigate("/salak")} />
       )}
 
-      <div className="space-y-4 p-4">
-        {!product && !error && <p className="text-sm text-neutral">กำลังโหลด...</p>}
-        {error && <p className="text-sm text-error" data-testid="message">{error}</p>}
+      <div className="flex flex-col gap-4 p-4">
+        {!product && !error && <p className="text-muted">กำลังโหลด...</p>}
+        {error && <p className="message" data-testid="message">{error}</p>}
 
         {product && salakAccount === null && (
-          <p className="rounded-xl bg-white p-4 text-sm text-error">
-            ไม่พบบัญชีสลากดิจิทัลสำหรับผู้ใช้นี้ ไม่สามารถซื้อสลากได้
-          </p>
+          <p className="error-box">ไม่พบบัญชีสลากดิจิทัลสำหรับผู้ใช้นี้ ไม่สามารถซื้อสลากได้</p>
         )}
 
         {product && salakAccount && step === "form" && (
           <>
             <Card>
-              <p className="text-sm text-neutral">ผลิตภัณฑ์</p>
-              <p className="font-semibold text-ink">{product.name}</p>
-              <p className="mt-1 text-xs text-neutral">
+              <p className="text-muted">ผลิตภัณฑ์</p>
+              <p className="text-strong">{product.name}</p>
+              <p className="mt-1 text-muted">
                 ฝากขั้นต่ำ ฿{formatTHB(product.min_purchase)} สูงสุด ฿{formatTHB(product.max_purchase)} ·
                 ทวีคูณละ ฿{formatTHB(product.step_amount)}
               </p>
             </Card>
 
             <Card>
-              <label className="mb-1 block text-sm font-medium text-ink">บัญชีที่ใช้ซื้อ</label>
+              <label className="field-label">บัญชีที่ใช้ซื้อ</label>
               {!savingsAccounts?.length ? (
-                <p className="text-sm text-error">ไม่พบบัญชีเงินฝากที่ใช้ซื้อได้</p>
+                <p className="message">ไม่พบบัญชีเงินฝากที่ใช้ซื้อได้</p>
               ) : (
                 <select
                   value={fundingAccountId}
                   onChange={(event) => setFundingAccountId(event.target.value)}
-                  className="w-full rounded-xl border border-neutral-lighter px-3 py-2 text-sm"
+                  className="select-input"
                 >
                   {savingsAccounts.map((account) => (
                     <option key={account.id} value={account.id}>
@@ -151,31 +149,30 @@ export function BuySalak() {
               )}
             </Card>
 
-            <Card className="text-center">
-              <p className="text-[12px] font-semibold tracking-wider text-neutral">จำนวนเงิน</p>
+            <Card className="amount-card">
+              <p className="amount-card__label">จำนวนเงิน</p>
               <input
                 type="number"
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
                 placeholder="0.00"
                 data-testid="amount-input"
-                className="mt-1.5 w-full border-none text-center font-bold text-ink tabular-nums outline-none"
-                style={{ fontSize: 38 }}
+                className="amount-input"
               />
-              <div className="mt-2 flex flex-wrap justify-center gap-2">
+              <div className="preset-amounts">
                 {PRESET_AMOUNTS.map((preset) => (
                   <button
                     key={preset}
                     type="button"
                     onClick={() => setAmount(String(preset))}
-                    className="rounded-full bg-pastel-pink px-3 py-1 text-xs font-medium text-primary-dark"
+                    className="preset-amounts__btn"
                   >
                     ฿{formatTHB(preset)}
                   </button>
                 ))}
               </div>
               {amountError && (
-                <p className="mt-2 text-xs text-error" data-testid="amount-error">
+                <p className="amount-error" data-testid="amount-error">
                   {amountError}
                 </p>
               )}
@@ -189,14 +186,12 @@ export function BuySalak() {
 
         {product && salakAccount && step === "confirm" && (
           <>
-            <div className="pb-2 pt-1 text-center">
-              <p className="text-[13px] font-semibold text-neutral">จำนวนเงิน</p>
-              <p className="mt-1.5 font-bold text-primary tabular-nums" style={{ fontSize: 36 }}>
-                ฿{formatTHB(amount)}
-              </p>
-              <p className="mt-1 text-xs text-neutral">0.00 ค่าธรรมเนียม</p>
+            <div className="confirm-amount-block">
+              <p className="confirm-amount-label">จำนวนเงิน</p>
+              <p className="confirm-amount-value">฿{formatTHB(amount)}</p>
+              <p className="confirm-amount-fee">0.00 ค่าธรรมเนียม</p>
             </div>
-            <Card className="divide-y divide-[color:var(--color-hairline)] text-sm [&>*]:py-3">
+            <Card className="kv-list">
               <Row label="ผลิตภัณฑ์" value={product.name} />
               <Row
                 label="จาก"
@@ -207,7 +202,7 @@ export function BuySalak() {
               <Row label="ไปยัง" value="บัญชีสลากดิจิทัล" />
             </Card>
             {error && (
-              <p className="text-sm text-error" data-testid="message">
+              <p className="message" data-testid="message">
                 {error}
               </p>
             )}
@@ -226,9 +221,9 @@ export function BuySalak() {
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between">
-      <span className="text-neutral">{label}</span>
-      <span className="font-medium text-ink">{value}</span>
+    <div className="kv-row">
+      <span className="kv-row__label">{label}</span>
+      <span className="kv-row__value">{value}</span>
     </div>
   );
 }

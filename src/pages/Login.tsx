@@ -28,11 +28,11 @@ export function Login() {
   }
 
   return (
-    <div className="flex flex-1 flex-col justify-center px-6">
-      <h1 className="mb-1 text-2xl font-bold text-primary-dark">Digital Salak</h1>
-      <p className="mb-8 text-sm text-neutral">เข้าสู่ระบบเพื่อจัดการสลากดิจิทัลของคุณ</p>
+    <div className="auth-page">
+      <h1 className="auth-page__title">Digital Salak</h1>
+      <p className="auth-page__subtitle">เข้าสู่ระบบเพื่อจัดการสลากดิจิทัลของคุณ</p>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="auth-page__form">
         <Field
           label="ชื่อผู้ใช้"
           value={username}
@@ -49,7 +49,7 @@ export function Login() {
           testId="password-input"
         />
         {error && (
-          <p className="text-sm text-error" data-testid="message">
+          <p className="message" data-testid="message">
             {error}
           </p>
         )}
@@ -58,9 +58,9 @@ export function Login() {
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-neutral">
+      <p className="auth-page__footer">
         ยังไม่มีบัญชี?{" "}
-        <Link to="/register" className="font-semibold text-primary">
+        <Link to="/register" className="auth-page__link">
           สมัครสมาชิก
         </Link>
       </p>
@@ -84,8 +84,8 @@ function Field({
   testId?: string;
 }) {
   return (
-    <label className="block">
-      <span className="mb-1 block text-sm font-medium text-ink">{label}</span>
+    <label className="field">
+      <span className="field__label">{label}</span>
       <input
         type={type}
         required
@@ -93,7 +93,7 @@ function Field({
         autoComplete={autoComplete}
         onChange={(event) => onChange(event.target.value)}
         data-testid={testId}
-        className="w-full rounded-xl border border-neutral-lighter bg-white px-4 py-3 text-sm outline-none focus:border-primary"
+        className="field__input"
       />
     </label>
   );

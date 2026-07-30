@@ -14,10 +14,10 @@ export function Settings() {
   return (
     <AppShell>
       <PageHeader title="ตั้งค่า" variant="plain" />
-      <div className="space-y-4 p-4">
-        <Card>
-          <p className="text-[15px] font-bold text-ink">{user?.full_name ?? user?.username}</p>
-          <p className="mt-0.5 text-[13px] text-neutral">@{user?.username}</p>
+      <div className="flex flex-col gap-4 p-4">
+        <Card className="settings-user-card">
+          <p className="settings-user-card__name">{user?.full_name ?? user?.username}</p>
+          <p className="settings-user-card__username">@{user?.username}</p>
         </Card>
         <Button variant="secondary" onClick={logout} data-testid="logout-button">
           ออกจากระบบ

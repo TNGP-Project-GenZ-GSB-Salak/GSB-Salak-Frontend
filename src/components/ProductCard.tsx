@@ -9,31 +9,21 @@ import { Card } from "./Card";
 export function ProductCard({ product, index }: { product: SalakProduct; index: number }) {
   return (
     <Card data-testid="product-row">
-      <div className="flex items-center gap-3.5">
-        <span
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-bold text-white"
-          style={{ backgroundImage: "var(--gradient-button)" }}
-        >
-          {index + 1}
-        </span>
+      <div className="product-card__top">
+        <span className="product-card__badge">{index + 1}</span>
         <div className="flex-1">
-          <p className="text-[16px] font-bold text-ink" data-testid="product-name">
+          <p className="product-card__name" data-testid="product-name">
             {product.name}
           </p>
-          <p className="mt-0.5 text-[13px] text-neutral">ระยะเวลา {product.term_months} เดือน</p>
-          <p className="text-[13px] text-neutral">หน่วยละ ฿{formatTHB(product.unit_price)} บาท</p>
+          <p className="product-card__meta">ระยะเวลา {product.term_months} เดือน</p>
+          <p className="product-card__meta">หน่วยละ ฿{formatTHB(product.unit_price)} บาท</p>
         </div>
       </div>
-      <div className="mt-3.5 flex items-center justify-between border-t border-[color:var(--color-hairline)] pt-3.5">
-        <span className="text-[14px] font-semibold text-neutral">
+      <div className="product-card__footer">
+        <span className="product-card__footer-label">
           ฝากขั้นต่ำ ฿{formatTHB(product.min_purchase)} สูงสุด ฿{formatTHB(product.max_purchase)}
         </span>
-        <Link
-          to={`/salak/buy/${product.id}`}
-          data-testid="buy-button"
-          className="flex h-8 shrink-0 items-center rounded-full px-4 text-[14px] font-semibold text-white"
-          style={{ backgroundImage: "var(--gradient-button)" }}
-        >
+        <Link to={`/salak/buy/${product.id}`} data-testid="buy-button" className="product-card__buy">
           ซื้อ
         </Link>
       </div>

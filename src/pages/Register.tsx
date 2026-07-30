@@ -27,13 +27,13 @@ export function Register() {
   }
 
   return (
-    <div className="flex flex-1 flex-col justify-center px-6">
-      <h1 className="mb-1 text-2xl font-bold text-primary-dark">สมัครสมาชิก</h1>
-      <p className="mb-8 text-sm text-neutral">
+    <div className="auth-page">
+      <h1 className="auth-page__title">สมัครสมาชิก</h1>
+      <p className="auth-page__subtitle">
         สร้างบัญชีใหม่ — บัญชีเงินฝากและสลากดิจิทัลจะถูกจัดเตรียมโดยระบบหลังบ้านแยกต่างหาก
       </p>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="auth-page__form">
         <Field
           label="ชื่อ-นามสกุล"
           value={fullName}
@@ -57,7 +57,7 @@ export function Register() {
           testId="password-input"
         />
         {error && (
-          <p className="text-sm text-error" data-testid="message">
+          <p className="message" data-testid="message">
             {error}
           </p>
         )}
@@ -66,9 +66,9 @@ export function Register() {
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-neutral">
+      <p className="auth-page__footer">
         มีบัญชีอยู่แล้ว?{" "}
-        <Link to="/login" className="font-semibold text-primary">
+        <Link to="/login" className="auth-page__link">
           เข้าสู่ระบบ
         </Link>
       </p>

@@ -14,10 +14,7 @@ const TABS = [
 
 export function BottomNav() {
   return (
-    <nav
-      className="fixed inset-x-0 bottom-0 mx-auto flex h-14 w-full max-w-md items-center justify-around border-t bg-white"
-      style={{ borderColor: "var(--color-hairline)" }}
-    >
+    <nav className="bottom-nav">
       {TABS.map((tab) => (
         <NavTab key={tab.key} tab={tab} />
       ))}
@@ -33,16 +30,9 @@ function NavTab({ tab }: { tab: Tab }) {
 
   if (!("to" in tab)) {
     return (
-      <div
-        data-testid={`nav-tab-${tab.key}`}
-        aria-disabled="true"
-        className="flex flex-col items-center gap-1 px-4 text-[11px] font-medium text-neutral-light"
-      >
+      <div data-testid={`nav-tab-${tab.key}`} aria-disabled="true" className="bottom-nav__tab bottom-nav__tab--inert">
         {raised ? (
-          <span
-            className="-mt-5 flex h-11 w-11 items-center justify-center rounded-full text-white shadow-[var(--shadow-card)]"
-            style={{ backgroundImage: "var(--gradient-button)" }}
-          >
+          <span className="bottom-nav__fab">
             <Icon className="h-5 w-5" />
           </span>
         ) : (
@@ -58,11 +48,7 @@ function NavTab({ tab }: { tab: Tab }) {
       to={tab.to}
       end={tab.to === "/"}
       data-testid={`nav-tab-${tab.key}`}
-      className={({ isActive }) =>
-        `flex flex-col items-center gap-1 px-4 text-[11px] font-medium ${
-          isActive ? "text-primary" : "text-neutral"
-        }`
-      }
+      className={({ isActive }) => `bottom-nav__tab ${isActive ? "bottom-nav__tab--active" : ""}`}
     >
       <Icon className="h-6 w-6" />
       {tab.label}
