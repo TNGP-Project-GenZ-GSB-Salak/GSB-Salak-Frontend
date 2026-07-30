@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens ported from GSB-Salak-Frontend/designrefs/MyMo Digital Salak
+ * Prototype - Standalone.html. Only the tokens actually used by the core
+ * buy/hold/view flow are ported here (not the full prototype palette).
+ */
+@theme {
+  --color-primary: #d83152;
+  --color-primary-dark: #9c233b;
+  --color-gsb: #ec068d;
+  --color-pink: #f39aaf;
+  --color-pastel-pink: #fee5ef;
+  --color-ink: #1c1c1e;
+  --color-neutral: #8e8e93;
+  --color-neutral-light: #c7c7cc;
+  --color-neutral-lighter: #dfdfe1;
+  --color-app-bg: #f4f4f4;
+  --color-success: #2ca87c;
+  --color-warning: #ff9500;
+  --color-error: #db4949;
+  --color-link: #007aff;
+
+  --font-sans:
+    "SF Pro Display", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+:root {
+  --gradient-primary: linear-gradient(135deg, #fc7c96, #d83152);
+  --gradient-button: linear-gradient(135deg, #fa7c93, #f14658);
+  --gradient-savings: linear-gradient(135deg, #e04369, #ff7295);
+  --gradient-salak: linear-gradient(135deg, #ff8840, #f9ad4c);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-app-bg);
+  color: var(--color-ink);
+}
