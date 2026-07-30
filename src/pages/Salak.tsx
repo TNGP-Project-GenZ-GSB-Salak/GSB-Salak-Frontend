@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import * as api from "../lib/api";
 import type { Account, Holding, SalakProduct } from "../lib/types";
 import { formatTHB, maskAccountNumber } from "../lib/format";
@@ -70,7 +71,20 @@ export function Salak() {
         </section>
 
         <section>
-          <h2 className="mb-2 text-sm font-semibold text-neutral">สลากที่คุณถืออยู่</h2>
+          <div className="mb-2 flex gap-5 border-b" style={{ borderColor: "var(--color-hairline)" }}>
+            <span className="border-b-2 border-primary pb-2 text-sm font-semibold text-ink">
+              สลาก ({holdings?.length ?? 0})
+            </span>
+            {salakAccount && (
+              <Link
+                to={`/accounts/${salakAccount.id}/transactions`}
+                data-testid="salak-history-link"
+                className="pb-2 text-sm font-medium text-neutral"
+              >
+                รายการเดินบัญชี
+              </Link>
+            )}
+          </div>
           <div className="space-y-3" data-testid="holdings-table">
             {holdings === null && <p className="text-sm text-neutral">กำลังโหลด...</p>}
             {holdings?.length === 0 && (

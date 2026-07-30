@@ -1,9 +1,16 @@
 import { NavLink } from "react-router-dom";
 
+// Matches the prototype's tabsConfig exactly (5 tabs, "scan" raised as a
+// FAB). Only หน้าหลัก/บัญชี/ตั้งค่า are wired — the prototype itself never
+// wires สแกนจ่าย or ประวัติ either (tabbar only handles home/accounts taps),
+// so those two stay inert here too rather than inventing new screens for them.
 const TABS = [
-  { to: "/", label: "หน้าหลัก", icon: HomeIcon },
-  { to: "/salak", label: "สลากดิจิทัล", icon: TicketIcon },
-];
+  { key: "home", to: "/", label: "หน้าหลัก", icon: HomeIcon },
+  { key: "accounts", to: "/accounts", label: "บัญชี", icon: WalletIcon },
+  { key: "scan", label: "สแกนจ่าย", icon: ScanIcon, raised: true },
+  { key: "history", label: "ประวัติ", icon: HistoryIcon },
+  { key: "settings", to: "/settings", label: "ตั้งค่า", icon: GearIcon },
+] as const;
 
 export function BottomNav() {
   return (
@@ -11,22 +18,55 @@ export function BottomNav() {
       className="fixed inset-x-0 bottom-0 mx-auto flex h-14 w-full max-w-md items-center justify-around border-t bg-white"
       style={{ borderColor: "var(--color-hairline)" }}
     >
-      {TABS.map(({ to, label, icon: Icon }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end={to === "/"}
-          className={({ isActive }) =>
-            `flex flex-col items-center gap-1 px-4 text-[11px] font-medium ${
-              isActive ? "text-primary" : "text-neutral"
-            }`
-          }
-        >
-          <Icon className="h-6 w-6" />
-          {label}
-        </NavLink>
+      {TABS.map((tab) => (
+        <NavTab key={tab.key} tab={tab} />
       ))}
     </nav>
+  );
+}
+
+type Tab = (typeof TABS)[number];
+
+function NavTab({ tab }: { tab: Tab }) {
+  const Icon = tab.icon;
+  const raised = "raised" in tab && tab.raised;
+
+  if (!("to" in tab)) {
+    return (
+      <div
+        data-testid={`nav-tab-${tab.key}`}
+        aria-disabled="true"
+        className="flex flex-col items-center gap-1 px-4 text-[11px] font-medium text-neutral-light"
+      >
+        {raised ? (
+          <span
+            className="-mt-5 flex h-11 w-11 items-center justify-center rounded-full text-white shadow-[var(--shadow-card)]"
+            style={{ backgroundImage: "var(--gradient-button)" }}
+          >
+            <Icon className="h-5 w-5" />
+          </span>
+        ) : (
+          <Icon className="h-6 w-6" />
+        )}
+        {tab.label}
+      </div>
+    );
+  }
+
+  return (
+    <NavLink
+      to={tab.to}
+      end={tab.to === "/"}
+      data-testid={`nav-tab-${tab.key}`}
+      className={({ isActive }) =>
+        `flex flex-col items-center gap-1 px-4 text-[11px] font-medium ${
+          isActive ? "text-primary" : "text-neutral"
+        }`
+      }
+    >
+      <Icon className="h-6 w-6" />
+      {tab.label}
+    </NavLink>
   );
 }
 
@@ -39,14 +79,43 @@ function HomeIcon({ className }: { className?: string }) {
   );
 }
 
-function TicketIcon({ className }: { className?: string }) {
+function WalletIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={className}>
+      <rect x="3" y="6" width="18" height="13" rx="2" />
+      <path d="M3 10h18" />
+      <path d="M15 14h3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ScanIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={className}>
+      <path d="M4 8V5a1 1 0 0 1 1-1h3M20 8V5a1 1 0 0 0-1-1h-3M4 16v3a1 1 0 0 0 1 1h3M20 16v3a1 1 0 0 1-1 1h-3" strokeLinecap="round" />
+      <path d="M4 12h16" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function HistoryIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={className}>
+      <circle cx="12" cy="13" r="8" />
+      <path d="M12 9v4l3 2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9 2h6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function GearIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={className}>
+      <circle cx="12" cy="12" r="3" />
       <path
-        d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4Z"
+        d="M19.4 13a7.97 7.97 0 0 0 0-2l2-1.5-2-3.5-2.4 1a8 8 0 0 0-1.7-1L15 3h-4l-.3 2a8 8 0 0 0-1.7 1l-2.4-1-2 3.5L6.6 11a7.97 7.97 0 0 0 0 2l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 1.7 1L11 21h4l.3-2a8 8 0 0 0 1.7-1l2.4 1 2-3.5-2-1.5Z"
         strokeLinejoin="round"
       />
-      <path d="M10 6v12" strokeDasharray="2 2" />
     </svg>
   );
 }

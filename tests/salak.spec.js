@@ -21,4 +21,16 @@ test.describe("salak overview", () => {
 
     await shoot(page, "verified");
   });
+
+  test("the account-history link navigates to the salak account's transactions", async ({ page }) => {
+    const shoot = createShooter("salak", "history-link");
+
+    await loginAsDemo(page);
+    await page.goto("/salak");
+    await shoot(page, "salak-loaded");
+
+    await page.getByTestId("salak-history-link").click();
+    await page.waitForURL(/\/accounts\/.+\/transactions/);
+    await shoot(page, "transactions-page-loaded");
+  });
 });

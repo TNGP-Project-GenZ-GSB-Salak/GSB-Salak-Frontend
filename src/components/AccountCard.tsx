@@ -13,10 +13,14 @@ const GRADIENTS: Record<Account["type"], string> = {
 };
 
 export function AccountCard({ account }: { account: Account }) {
+  // Salak accounts have their own richer overview screen; everything else
+  // (just savings, for now) goes to its plain transaction ledger.
+  const destination = account.type === "salak" ? "/salak" : `/accounts/${account.id}/transactions`;
+
   return (
     <div data-testid="account-row">
       <Link
-        to={`/accounts/${account.id}/transactions`}
+        to={destination}
         data-testid="account-history-link"
         className="block rounded-2xl p-4 text-white shadow-[var(--shadow-card)]"
         style={{ backgroundImage: GRADIENTS[account.type] }}
