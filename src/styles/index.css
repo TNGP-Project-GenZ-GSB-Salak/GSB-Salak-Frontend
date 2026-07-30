@@ -15,6 +15,7 @@
   --color-neutral: #8e8e93;
   --color-neutral-light: #c7c7cc;
   --color-neutral-lighter: #dfdfe1;
+  --color-hairline: #ededed;
   --color-app-bg: #f4f4f4;
   --color-success: #2ca87c;
   --color-warning: #ff9500;
@@ -26,10 +27,11 @@
 }
 
 :root {
-  --gradient-primary: linear-gradient(135deg, #fc7c96, #d83152);
+  --gradient-primary: linear-gradient(160deg, #fc7c96, #d83152);
   --gradient-button: linear-gradient(135deg, #fa7c93, #f14658);
   --gradient-savings: linear-gradient(135deg, #e04369, #ff7295);
   --gradient-salak: linear-gradient(135deg, #ff8840, #f9ad4c);
+  --shadow-card: 0 4px 16px rgba(150, 160, 175, 0.18);
 }
 
 html,

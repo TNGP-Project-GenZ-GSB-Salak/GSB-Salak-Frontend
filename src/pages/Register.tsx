@@ -34,17 +34,34 @@ export function Register() {
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <Field label="ชื่อ-นามสกุล" value={fullName} onChange={setFullName} autoComplete="name" />
-        <Field label="ชื่อผู้ใช้" value={username} onChange={setUsername} autoComplete="username" />
+        <Field
+          label="ชื่อ-นามสกุล"
+          value={fullName}
+          onChange={setFullName}
+          autoComplete="name"
+          testId="full-name-input"
+        />
+        <Field
+          label="ชื่อผู้ใช้"
+          value={username}
+          onChange={setUsername}
+          autoComplete="username"
+          testId="username-input"
+        />
         <Field
           label="รหัสผ่าน"
           value={password}
           onChange={setPassword}
           type="password"
           autoComplete="new-password"
+          testId="password-input"
         />
-        {error && <p className="text-sm text-error">{error}</p>}
-        <Button type="submit" disabled={submitting}>
+        {error && (
+          <p className="text-sm text-error" data-testid="message">
+            {error}
+          </p>
+        )}
+        <Button type="submit" disabled={submitting} data-testid="submit-button">
           {submitting ? "กำลังสมัครสมาชิก..." : "สมัครสมาชิก"}
         </Button>
       </form>

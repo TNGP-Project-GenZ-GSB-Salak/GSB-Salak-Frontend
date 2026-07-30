@@ -90,7 +90,7 @@ export function BuySalak() {
   if (step === "success" && receipt) {
     return (
       <AppShell showNav={false}>
-        <PageHeader title="ทำรายการสำเร็จ" onBack={() => navigate("/salak")} />
+        <PageHeader title="ทำรายการสำเร็จ" variant="plain" />
         <div className="space-y-4 p-4">
           <ReceiptSummary receipt={receipt} />
           <Button onClick={() => navigate("/salak")}>เสร็จสิ้น</Button>
@@ -101,11 +101,19 @@ export function BuySalak() {
 
   return (
     <AppShell showNav={false}>
-      <PageHeader title={step === "confirm" ? "ยืนยันข้อมูลการทำรายการ" : "ซื้อสลากดิจิทัล"} />
+      {step === "confirm" ? (
+        <PageHeader
+          title="ยืนยันข้อมูลการทำรายการ"
+          variant="back"
+          onAction={() => setStep("form")}
+        />
+      ) : (
+        <PageHeader title="ซื้อสลากดิจิทัล" variant="close" onAction={() => navigate("/salak")} />
+      )}
 
       <div className="space-y-4 p-4">
         {!product && !error && <p className="text-sm text-neutral">กำลังโหลด...</p>}
-        {error && <p className="text-sm text-error">{error}</p>}
+        {error && <p className="text-sm text-error" data-testid="message">{error}</p>}
 
         {product && salakAccount === null && (
           <p className="rounded-xl bg-white p-4 text-sm text-error">
@@ -143,16 +151,18 @@ export function BuySalak() {
               )}
             </Card>
 
-            <Card>
-              <label className="mb-1 block text-sm font-medium text-ink">จำนวนเงิน</label>
+            <Card className="text-center">
+              <p className="text-[12px] font-semibold tracking-wider text-neutral">จำนวนเงิน</p>
               <input
                 type="number"
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
                 placeholder="0.00"
-                className="w-full rounded-xl border border-neutral-lighter px-3 py-2 text-lg font-semibold"
+                data-testid="amount-input"
+                className="mt-1.5 w-full border-none text-center font-bold text-ink tabular-nums outline-none"
+                style={{ fontSize: 38 }}
               />
-              <div className="mt-2 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap justify-center gap-2">
                 {PRESET_AMOUNTS.map((preset) => (
                   <button
                     key={preset}
@@ -164,7 +174,11 @@ export function BuySalak() {
                   </button>
                 ))}
               </div>
-              {amountError && <p className="mt-2 text-xs text-error">{amountError}</p>}
+              {amountError && (
+                <p className="mt-2 text-xs text-error" data-testid="amount-error">
+                  {amountError}
+                </p>
+              )}
             </Card>
 
             <Button disabled={!canProceed} onClick={() => setStep("confirm")}>
@@ -175,9 +189,15 @@ export function BuySalak() {
 
         {product && salakAccount && step === "confirm" && (
           <>
-            <Card className="space-y-2 text-sm">
+            <div className="pb-2 pt-1 text-center">
+              <p className="text-[13px] font-semibold text-neutral">จำนวนเงิน</p>
+              <p className="mt-1.5 font-bold text-primary tabular-nums" style={{ fontSize: 36 }}>
+                ฿{formatTHB(amount)}
+              </p>
+              <p className="mt-1 text-xs text-neutral">0.00 ค่าธรรมเนียม</p>
+            </div>
+            <Card className="divide-y divide-[color:var(--color-hairline)] text-sm [&>*]:py-3">
               <Row label="ผลิตภัณฑ์" value={product.name} />
-              <Row label="จำนวนเงิน" value={`฿${formatTHB(amount)}`} />
               <Row
                 label="จาก"
                 value={maskAccountNumber(
@@ -186,8 +206,12 @@ export function BuySalak() {
               />
               <Row label="ไปยัง" value="บัญชีสลากดิจิทัล" />
             </Card>
-            {error && <p className="text-sm text-error">{error}</p>}
-            <Button disabled={submitting} onClick={handleConfirmSubmit}>
+            {error && (
+              <p className="text-sm text-error" data-testid="message">
+                {error}
+              </p>
+            )}
+            <Button disabled={submitting} onClick={handleConfirmSubmit} data-testid="confirm-button">
               {submitting ? "กำลังทำรายการ..." : "ยืนยัน"}
             </Button>
             <Button variant="secondary" onClick={() => setStep("form")} disabled={submitting}>

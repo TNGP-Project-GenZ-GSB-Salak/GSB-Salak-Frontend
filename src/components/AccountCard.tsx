@@ -14,17 +14,35 @@ const GRADIENTS: Record<Account["type"], string> = {
 
 export function AccountCard({ account }: { account: Account }) {
   return (
-    <Link
-      to={`/accounts/${account.id}/transactions`}
-      className="block rounded-2xl p-5 text-white shadow-[0_2px_12px_rgba(0,0,0,0.12)]"
-      style={{ backgroundImage: GRADIENTS[account.type] }}
-    >
-      <p className="text-sm opacity-90">{LABELS[account.type]}</p>
-      <p className="mt-1 text-xs opacity-75">{maskAccountNumber(account.account_number)}</p>
-      <p className="mt-4 text-2xl font-semibold">
-        ฿{formatTHB(account.balance)}
-        <span className="ml-1 text-sm font-normal opacity-80">{account.currency}</span>
-      </p>
-    </Link>
+    <div data-testid="account-row">
+      <Link
+        to={`/accounts/${account.id}/transactions`}
+        data-testid="account-history-link"
+        className="block rounded-2xl p-4 text-white shadow-[var(--shadow-card)]"
+        style={{ backgroundImage: GRADIENTS[account.type] }}
+      >
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-[15px] font-bold">{LABELS[account.type]}</p>
+            <p className="mt-0.5 text-xs opacity-90" data-testid="account-number">
+              {maskAccountNumber(account.account_number)}
+            </p>
+          </div>
+          <ArrowIcon className="h-[18px] w-[18px] opacity-90" />
+        </div>
+        <p className="mt-[18px] text-[11px] font-semibold tracking-wider opacity-85">คงเหลือ</p>
+        <p className="font-bold tabular-nums" style={{ fontSize: 24 }}>
+          ฿{formatTHB(account.balance)}
+        </p>
+      </Link>
+    </div>
+  );
+}
+
+function ArrowIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={className}>
+      <path d="m9 6 6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }

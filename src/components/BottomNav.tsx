@@ -7,14 +7,17 @@ const TABS = [
 
 export function BottomNav() {
   return (
-    <nav className="fixed inset-x-0 bottom-0 mx-auto flex w-full max-w-md items-center justify-around border-t border-neutral-lighter bg-white py-2">
+    <nav
+      className="fixed inset-x-0 bottom-0 mx-auto flex h-14 w-full max-w-md items-center justify-around border-t bg-white"
+      style={{ borderColor: "var(--color-hairline)" }}
+    >
       {TABS.map(({ to, label, icon: Icon }) => (
         <NavLink
           key={to}
           to={to}
           end={to === "/"}
           className={({ isActive }) =>
-            `flex flex-col items-center gap-1 px-4 py-1 text-xs font-medium ${
+            `flex flex-col items-center gap-1 px-4 text-[11px] font-medium ${
               isActive ? "text-primary" : "text-neutral"
             }`
           }

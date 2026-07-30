@@ -33,16 +33,27 @@ export function Login() {
       <p className="mb-8 text-sm text-neutral">เข้าสู่ระบบเพื่อจัดการสลากดิจิทัลของคุณ</p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <Field label="ชื่อผู้ใช้" value={username} onChange={setUsername} autoComplete="username" />
+        <Field
+          label="ชื่อผู้ใช้"
+          value={username}
+          onChange={setUsername}
+          autoComplete="username"
+          testId="username-input"
+        />
         <Field
           label="รหัสผ่าน"
           value={password}
           onChange={setPassword}
           type="password"
           autoComplete="current-password"
+          testId="password-input"
         />
-        {error && <p className="text-sm text-error">{error}</p>}
-        <Button type="submit" disabled={submitting}>
+        {error && (
+          <p className="text-sm text-error" data-testid="message">
+            {error}
+          </p>
+        )}
+        <Button type="submit" disabled={submitting} data-testid="submit-button">
           {submitting ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
         </Button>
       </form>
@@ -63,12 +74,14 @@ function Field({
   onChange,
   type = "text",
   autoComplete,
+  testId,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
   autoComplete?: string;
+  testId?: string;
 }) {
   return (
     <label className="block">
@@ -79,6 +92,7 @@ function Field({
         value={value}
         autoComplete={autoComplete}
         onChange={(event) => onChange(event.target.value)}
+        data-testid={testId}
         className="w-full rounded-xl border border-neutral-lighter bg-white px-4 py-3 text-sm outline-none focus:border-primary"
       />
     </label>

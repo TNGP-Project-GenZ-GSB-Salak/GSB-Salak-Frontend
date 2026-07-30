@@ -45,7 +45,7 @@ export function TransactionHistory() {
           <p className="rounded-xl bg-white p-4 text-sm text-neutral">ยังไม่มีรายการเดินบัญชี</p>
         )}
         {transactions?.map((txn) => (
-          <Card key={txn.id} className="flex items-center justify-between">
+          <Card key={txn.id} data-testid="transaction-row" className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-ink">{txn.description}</p>
               <p className="mt-1 text-xs text-neutral">{formatDate(txn.created_at)}</p>
