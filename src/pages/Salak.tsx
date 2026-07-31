@@ -1,28 +1,26 @@
 import { useEffect, useState, type SVGProps } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
-import type { Account, Holding, SalakProduct } from "../lib/types";
+import type { Account, Holding } from "../lib/types";
 import { formatTHB, maskAccountNumber } from "../lib/format";
 import { AppShell } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
-import { ProductCard } from "../components/ProductCard";
 import { HoldingCard } from "../components/HoldingCard";
 
-// The prototype's 4-icon quick-action row (ซื้อสลาก / ข้อมูลผลิตภัณฑ์ /
-// ประวัติการออก / ตั้งค่า). Even in the prototype only the "close" header and
-// balance card are functional here — the row itself is decorative in both,
-// since buying already happens via the product cards further down this page.
+// The prototype's 4-icon quick-action row. Only "ซื้อสลาก" (-> the buy-list
+// screen) is wired, matching the prototype's own goBuyList binding; the rest
+// (product info / issue history / settings) have no corresponding screens
+// built yet and stay decorative.
 const SALAK_QUICK_ACTIONS = [
-  { label: "ซื้อสลาก", icon: BuyIcon },
-  { label: "ข้อมูลผลิตภัณฑ์", icon: InfoIcon },
-  { label: "ประวัติการออก", icon: ScheduleIcon },
-  { label: "ตั้งค่า", icon: GearIcon },
+  { label: "ซื้อสลาก", icon: BuyIcon, to: "/salak/buy" },
+  { label: "ข้อมูลผลิตภัณฑ์", icon: InfoIcon, to: null },
+  { label: "ประวัติการออก", icon: ScheduleIcon, to: null },
+  { label: "ตั้งค่า", icon: GearIcon, to: null },
 ] as const;
 
 export function Salak() {
   const navigate = useNavigate();
   const [salakAccount, setSalakAccount] = useState<Account | null | undefined>(undefined);
-  const [products, setProducts] = useState<SalakProduct[] | null>(null);
   const [holdings, setHoldings] = useState<Holding[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,14 +29,10 @@ export function Salak() {
 
     async function load() {
       try {
-        const [accounts, productList] = await Promise.all([
-          api.listAccounts(),
-          api.listSalakProducts(),
-        ]);
+        const accounts = await api.listAccounts();
         if (cancelled) return;
         const account = accounts.find((a) => a.type === "salak") ?? null;
         setSalakAccount(account);
-        setProducts(productList);
 
         if (account) {
           const holdingList = await api.listHoldings(account.id);
@@ -73,28 +67,27 @@ export function Salak() {
       </div>
 
       <div className="salak-quick-actions">
-        {SALAK_QUICK_ACTIONS.map((action) => (
-          <div className="salak-quick-actions__item" key={action.label}>
-            <span className="salak-quick-actions__icon">
-              <action.icon className="h-[22px] w-[22px]" />
-            </span>
-            <span className="salak-quick-actions__label">{action.label}</span>
-          </div>
-        ))}
+        {SALAK_QUICK_ACTIONS.map((action) =>
+          action.to ? (
+            <Link to={action.to} className="salak-quick-actions__item" key={action.label} data-testid="salak-buy-action">
+              <span className="salak-quick-actions__icon">
+                <action.icon className="h-[22px] w-[22px]" />
+              </span>
+              <span className="salak-quick-actions__label">{action.label}</span>
+            </Link>
+          ) : (
+            <div className="salak-quick-actions__item salak-quick-actions__item--inert" key={action.label}>
+              <span className="salak-quick-actions__icon">
+                <action.icon className="h-[22px] w-[22px]" />
+              </span>
+              <span className="salak-quick-actions__label">{action.label}</span>
+            </div>
+          ),
+        )}
       </div>
 
       <div className="flex flex-col gap-6 px-4 pt-2">
         {error && <p className="error-box">{error}</p>}
-
-        <section>
-          <h2 className="section-heading">ผลิตภัณฑ์สลากดิจิทัล</h2>
-          <div className="flex flex-col gap-2">
-            {products === null && <p className="text-muted">กำลังโหลด...</p>}
-            {products?.map((product, index) => (
-              <ProductCard key={product.id} product={product} index={index} />
-            ))}
-          </div>
-        </section>
 
         <section>
           <div className="tab-row">

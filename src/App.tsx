@@ -8,6 +8,7 @@ import { Home } from "./pages/Home";
 import { Accounts } from "./pages/Accounts";
 import { Settings } from "./pages/Settings";
 import { Salak } from "./pages/Salak";
+import { SalakBuyList } from "./pages/SalakBuyList";
 import { BuySalak } from "./pages/BuySalak";
 import { TransactionHistory } from "./pages/TransactionHistory";
 
@@ -47,6 +48,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <Salak />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/salak/buy"
+            element={
+              <ProtectedRoute>
+                <SalakBuyList />
               </ProtectedRoute>
             }
           />

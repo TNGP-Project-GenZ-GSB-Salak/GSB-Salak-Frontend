@@ -2,35 +2,69 @@ import { test, expect } from "@playwright/test";
 import { createShooter } from "./helpers/screenshot.js";
 import { loginAsDemo } from "./helpers/auth.js";
 
+async function enterAmountViaKeypad(page, digits) {
+  await page.getByTestId("amount-trigger").click();
+  await page.getByTestId("amount-custom").click();
+  for (const digit of digits) {
+    await page.getByTestId(`keypad-key-${digit}`).click();
+  }
+  await page.getByTestId("keypad-confirm").click();
+}
+
 test.describe("buy salak", () => {
-  test("below-minimum amount is rejected client-side", async ({ page }) => {
+  test("mode-choose sheet offers buy-now and a disabled save-first option", async ({ page }) => {
+    const shoot = createShooter("buy-salak", "mode-choose");
+
+    await loginAsDemo(page);
+    await page.goto("/salak/buy");
+    await page.getByTestId("buy-button").first().click();
+    await shoot(page, "mode-choose-sheet");
+
+    await expect(page.getByTestId("mode-buy-now")).toBeEnabled();
+    await expect(page.getByTestId("mode-save-first")).toBeDisabled();
+  });
+
+  test("below-minimum amount is rejected and blocks the slide-to-send control", async ({ page }) => {
     const shoot = createShooter("buy-salak", "below-minimum");
 
     await loginAsDemo(page);
-    await page.goto("/salak");
+    await page.goto("/salak/buy");
     await page.getByTestId("buy-button").first().click();
-    await shoot(page, "buy-form");
+    await page.getByTestId("mode-buy-now").click();
+    await page.waitForURL(/\/salak\/buy\/.+/);
+    await shoot(page, "transfer-screen");
 
-    await page.getByTestId("amount-input").fill("500");
+    await enterAmountViaKeypad(page, ["5", "0", "0"]);
     await shoot(page, "amount-below-minimum");
 
     await expect(page.getByTestId("amount-error")).toHaveText(/ฝากขั้นต่ำ/);
-    await expect(page.getByRole("button", { name: "ถัดไป" })).toBeDisabled();
-    await shoot(page, "validation-error-shown");
+
+    // The slide control ignores clicks while the amount is invalid, so it
+    // never advances past the transfer screen.
+    await page.getByTestId("slide-to-confirm").click();
+    await page.waitForTimeout(300);
+    await expect(page.getByText("โอนเงิน")).toBeVisible();
+    await shoot(page, "still-on-transfer");
   });
 
-  test("happy path: buy a product and see the receipt", async ({ page }) => {
+  test("happy path: buy a product and see it appear back on the salak overview", async ({ page }) => {
     const shoot = createShooter("buy-salak", "success");
 
     await loginAsDemo(page);
-    await page.goto("/salak");
+    await page.goto("/salak/buy");
     await page.getByTestId("buy-button").first().click();
-    await shoot(page, "buy-form");
+    await shoot(page, "mode-choose-sheet");
 
-    await page.getByTestId("amount-input").fill("2000");
+    await page.getByTestId("mode-buy-now").click();
+    await page.waitForURL(/\/salak\/buy\/.+/);
+    await shoot(page, "transfer-screen");
+
+    await enterAmountViaKeypad(page, ["2", "0", "0", "0"]);
+    await expect(page.getByTestId("amount-trigger")).toContainText("2,000.00");
     await shoot(page, "amount-filled");
 
-    await page.getByRole("button", { name: "ถัดไป" }).click();
+    await page.getByTestId("slide-to-confirm").click();
+    await expect(page.getByText("ยืนยันข้อมูลการทำรายการ")).toBeVisible();
     await shoot(page, "confirm-screen");
 
     await page.getByTestId("confirm-button").click();
@@ -40,5 +74,7 @@ test.describe("buy salak", () => {
     await page.getByRole("button", { name: "เสร็จสิ้น" }).click();
     await page.waitForURL("/salak");
     await shoot(page, "back-to-salak");
+
+    await expect(page.getByTestId("holdings-table")).toContainText("Digital Salak 1-Year");
   });
 });

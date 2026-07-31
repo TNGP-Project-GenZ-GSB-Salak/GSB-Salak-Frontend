@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
 import type { Account, SalakProduct } from "../lib/types";
 import { AppShell } from "../components/AppShell";
@@ -11,7 +12,10 @@ type Segment = "accounts" | "products";
 // segmented control — "บัญชีของฉัน" (accounts) is the functional tab; the
 // prototype's "ผลิตภัณฑ์และบริการ" tab is repurposed here to show the Salak
 // product catalog (a real in-scope "product"), rather than left as a dead tab.
+// Tapping either action here just hands off into the real buy flow (Salak's
+// buy-list screen owns the actual detail sheet / mode-choose sheet).
 export function Accounts() {
+  const navigate = useNavigate();
   const [segment, setSegment] = useState<Segment>("accounts");
   const [accounts, setAccounts] = useState<Account[] | null>(null);
   const [products, setProducts] = useState<SalakProduct[] | null>(null);
@@ -71,7 +75,13 @@ export function Accounts() {
           <>
             {!error && products === null && <p className="empty-state">กำลังโหลด...</p>}
             {products?.map((product, index) => (
-              <ProductCard key={product.id} product={product} index={index} />
+              <ProductCard
+                key={product.id}
+                product={product}
+                index={index}
+                onDetail={() => navigate("/salak/buy")}
+                onBuy={() => navigate(`/salak/buy/${product.id}`)}
+              />
             ))}
           </>
         )}

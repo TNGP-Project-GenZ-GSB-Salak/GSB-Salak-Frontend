@@ -3,21 +3,28 @@ import { createShooter } from "./helpers/screenshot.js";
 import { loginAsDemo } from "./helpers/auth.js";
 
 test.describe("salak overview", () => {
-  test("renders salak balance, both products, and the holdings list", async ({ page }) => {
+  test("renders the salak balance and holdings list, and links to the buy-list screen", async ({ page }) => {
     const shoot = createShooter("salak", "overview-renders");
 
     await loginAsDemo(page);
     await page.goto("/salak");
     await shoot(page, "salak-loaded");
 
-    await expect(page.getByTestId("product-row")).toHaveCount(2);
-    const productNames = await page.getByTestId("product-name").allTextContents();
-    expect(productNames).toContain("Digital Salak 1-Year");
-    expect(productNames).toContain("Digital Salak 2-Year");
+    // Products live on the buy-list screen now, not inline on the overview.
+    await expect(page.getByTestId("product-row")).toHaveCount(0);
 
     // Holdings list exists; row count isn't asserted since it depends on what
     // earlier specs in the run (e.g. buy-salak) have already purchased.
     await expect(page.getByTestId("holdings-table")).toBeVisible();
+
+    await page.getByTestId("salak-buy-action").click();
+    await page.waitForURL("/salak/buy");
+    await shoot(page, "buy-list-loaded");
+
+    await expect(page.getByTestId("product-row")).toHaveCount(2);
+    const productNames = await page.getByTestId("product-name").allTextContents();
+    expect(productNames).toContain("Digital Salak 1-Year");
+    expect(productNames).toContain("Digital Salak 2-Year");
 
     await shoot(page, "verified");
   });
