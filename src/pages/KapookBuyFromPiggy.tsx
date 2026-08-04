@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import type { BuySalakResponse } from "../lib/types";
-import { formatTHB } from "../lib/format";
+import * as api from "../lib/api";
+import type { Account, BuySalakResponse, SalakProduct } from "../lib/types";
+import { formatTHB, maskAccountNumber } from "../lib/format";
 import { AppShell } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
 import { Card } from "../components/Card";
@@ -13,20 +14,44 @@ import { useKapook } from "../context/KapookContext";
 
 type Step = "amount" | "confirm" | "success";
 
+const TAG_OPTIONS = ["ซื้อสลาก", "ซื้อสลากให้ลูก", "ออมเงิน"];
+
 // Matches the prototype's transfer screen in its "amountLocked" mode
-// (prompt/README.md §15): buying Salak from the piggy is its own amount-entry
-// step — capped at the piggy's saved balance and rounded down to the nearest
-// ฿1,000 — not an instant one-tap spend of the whole balance.
+// (prompt/README.md §15, designs/…V.5.html): the same "จาก"/"ถึง" two-card +
+// tags layout as BuySalak.tsx's real "ซื้อเลย" flow (this screen is shared
+// between both in the prototype) — buying Salak from the piggy is its own
+// amount-entry step, capped at the piggy's saved balance and rounded down to
+// the nearest ฿1,000, not an instant one-tap spend of the whole balance.
 export function KapookBuyFromPiggy() {
   const navigate = useNavigate();
   const { state, confirmGoalPurchase } = useKapook();
+  const [product, setProduct] = useState<SalakProduct | null>(null);
+  const [salakAccount, setSalakAccount] = useState<Account | null>(null);
   const [step, setStep] = useState<Step>("amount");
   const [amount, setAmount] = useState(0);
   const [keypadOpen, setKeypadOpen] = useState(false);
   const [keypadInput, setKeypadInput] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<BuySalakResponse | null>(null);
+
+  useEffect(() => {
+    if (!state.goal) return;
+    let cancelled = false;
+    Promise.all([api.getSalakProduct(state.goal.productId), api.listAccounts()]).then(([productData, accounts]) => {
+      if (cancelled) return;
+      setProduct(productData);
+      setSalakAccount(accounts.find((a) => a.type === "salak") ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [state.goal?.productId]);
+
+  function toggleTag(tag: string) {
+    setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
+  }
 
   // A *full* purchase (amount === savedAmount) that also completes the
   // target closes the goal (state.goal becomes null) as soon as the context
@@ -82,13 +107,40 @@ export function KapookBuyFromPiggy() {
               </div>
             </div>
 
+            <p className="transfer-label mt-3">ถึง</p>
+            <div className="gradient-card gradient-card--salak">
+              <div className="gradient-card__top">
+                <div>
+                  <p className="gradient-card__label">{salakAccount ? maskAccountNumber(salakAccount.account_number) : ""}</p>
+                  <p className="gradient-card__meta mt-1">{product?.name ?? ""}</p>
+                </div>
+                <p className="gradient-card__balance">฿0.00</p>
+              </div>
+            </div>
+
             <button type="button" onClick={openKeypad} className="transfer-amount-trigger mt-3" data-testid="buy-piggy-amount-trigger">
               <span className="transfer-amount-trigger__label">จำนวนเงิน</span>
               <span className={`transfer-amount-trigger__value ${amount > 0 ? "" : "transfer-amount-trigger__value--muted"}`}>
                 {formatTHB(amount)}
               </span>
+              <span className="transfer-amount-trigger__note">ยอดเงินจากการออมสะสม</span>
             </button>
-            <p className="text-muted text-center">ยอดออมที่ใช้ซื้อสลากได้ ฿{formatTHB((goal?.savedAmount ?? 0))}</p>
+
+            <div className="transfer-tags">
+              <p className="field-label">แท็ก</p>
+              <div className="flex flex-wrap gap-2">
+                {TAG_OPTIONS.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleTag(tag)}
+                    className={`chip ${selectedTags.includes(tag) ? "chip--selected" : ""}`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="p-5">

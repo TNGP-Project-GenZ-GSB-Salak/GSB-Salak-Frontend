@@ -176,7 +176,7 @@ export function KapookOnboarding() {
           </p>
           <p className="terms-page__clause">4) ในกรณีที่ผู้ฝากไม่สามารถออมเงินได้ครบตามจำนวนหรือเงื่อนไขที่กำหนดไว้ จะไม่มีการหักค่าธรรมเนียมหรือค่าปรับใดๆ ทั้งสิ้น</p>
 
-          <div className="fixed inset-x-0 bottom-0 p-5">
+          <div className="absolute inset-x-0 bottom-0 p-5">
             <Button onClick={handleAcceptTerms} data-testid="accept-terms">
               ถัดไป
             </Button>

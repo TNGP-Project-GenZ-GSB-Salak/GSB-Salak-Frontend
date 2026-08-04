@@ -1816,6 +1816,14 @@ body {
   color: var(--mymo-mid-gray);
 }
 
+.transfer-amount-trigger__note {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-brand);
+}
+
 .transfer-tags {
   margin-top: 24px;
   padding-top: 14px;
