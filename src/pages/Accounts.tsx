@@ -3,11 +3,10 @@ import { useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
 import type { Account, SalakProduct } from "../lib/types";
 import { formatTHB } from "../lib/format";
-import { computeAvailableBalance, cumulativeCommitted, goalProgressPct } from "../lib/kapookStore";
+import { computeAvailableBalance } from "../lib/kapookStore";
 import { useKapook } from "../context/KapookContext";
 import { AppShell } from "../components/AppShell";
 import { AccountCard } from "../components/AccountCard";
-import { ProgressBar } from "../components/ProgressBar";
 import { ProductCard } from "../components/ProductCard";
 
 type Segment = "accounts" | "products";
@@ -100,16 +99,6 @@ export function Accounts() {
                 </div>
                 <p className="gradient-card__eyebrow">คงเหลือ</p>
                 <p className="gradient-card__balance">฿{formatTHB(goal?.savedAmount ?? 0)}</p>
-                {goal && (
-                  <div className="mt-3">
-                    <div className="flex justify-between items-baseline">
-                      <span style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>ความคืบหน้า</span>
-                      <span style={{ fontSize: 12, fontWeight: 700 }}>{goalProgressPct(goal)}%</span>
-                    </div>
-                    <ProgressBar value={cumulativeCommitted(goal)} max={goal.targetAmount} />
-                    <p style={{ fontSize: 11, opacity: 0.85, marginTop: 4 }}>เป้าหมาย ฿{formatTHB(goal.targetAmount)}</p>
-                  </div>
-                )}
               </button>
             )}
           </>

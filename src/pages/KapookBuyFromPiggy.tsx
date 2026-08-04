@@ -60,8 +60,11 @@ export function KapookBuyFromPiggy() {
   // purchase that just happened. Only redirect away before that point.
   if (!state.goal && step !== "success") return <Navigate to="/kapook" replace />;
   const goal = state.goal;
-  const canSend = !!goal && amount > 0 && amount <= goal.savedAmount;
-  const buyCap = Math.floor((goal?.savedAmount ?? 0) / 1000) * 1000;
+  // Matches designs/…V.5.html's `salakAmountNotMultipleError`: the amount is
+  // NOT silently rounded down — it's validated, and "เลื่อนเพื่อส่ง" stays
+  // disabled with an error message until it's an exact multiple of ฿1,000.
+  const notMultipleOf1000 = amount > 0 && amount % 1000 !== 0;
+  const canSend = !!goal && amount > 0 && amount <= goal.savedAmount && !notMultipleOf1000;
 
   function openKeypad() {
     setKeypadInput(amount ? String(amount) : "");
@@ -71,13 +74,12 @@ export function KapookBuyFromPiggy() {
 
   // Every keystroke updates the amount on the page itself immediately —
   // matches a real banking-app keypad, no separate readout duplicated
-  // inside the sheet. Rounded down to the nearest ฿1,000 live as you type,
-  // same rule as before, just applied continuously instead of only on
-  // confirm.
+  // inside the sheet — showing exactly what was typed (capped at the saved
+  // balance), not a silently-rounded value.
   function applyKeypadValue(rawDigits: string) {
     setKeypadInput(rawDigits);
     const n = parseInt(rawDigits || "0", 10) || 0;
-    setAmount(Math.min(Math.floor(n / 1000) * 1000, buyCap));
+    setAmount(Math.min(n, goal?.savedAmount ?? 0));
   }
 
   function keypadCancel() {
@@ -137,9 +139,13 @@ export function KapookBuyFromPiggy() {
               </span>
               <span className="transfer-amount-trigger__note">ยอดเงินจากการออมสะสม</span>
             </button>
-            <p className="text-muted text-center">
-              ยอดพร้อมฝากสลาก ฿{formatTHB(goal?.savedAmount ?? 0)} · ปัดเศษลงเป็นจำนวนที่หารด้วย 1,000 บาทลงตัว
-            </p>
+            {notMultipleOf1000 ? (
+              <p className="amount-error text-center" data-testid="buy-piggy-amount-error">
+                กรุณาระบุจำนวนเป็นจำนวนเต็มพันบาท (เช่น 1,000, 2,000)
+              </p>
+            ) : (
+              <p className="text-muted text-center">ยอดพร้อมฝากสลาก ฿{formatTHB(goal?.savedAmount ?? 0)}</p>
+            )}
 
             <div className="transfer-tags">
               <p className="field-label">แท็ก</p>

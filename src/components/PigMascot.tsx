@@ -31,7 +31,7 @@ interface PigMascotProps {
   className?: string;
   width?: number;
   height?: number;
-  animation?: "spin" | "bounce" | "none" | "bob" | "party" | "celebrate";
+  animation?: "spin" | "bounce" | "none" | "bob" | "party" | "celebrate" | "tap";
   /** The salakInfo hero's pig has a medal ribbon on its chest and a smile —
    * the Home/tracker pig doesn't. Transcribed from the same extraction pass. */
   medal?: boolean;
@@ -44,6 +44,7 @@ const WRAPPER_ANIMATION: Record<NonNullable<PigMascotProps["animation"]>, string
   bob: "pigBob 2.6s ease-in-out infinite",
   party: "pigParty 0.9s ease-in-out infinite",
   celebrate: "pigCelebrate 0.6s ease-in-out 3",
+  tap: "pigTapBounce 0.5s ease-in-out 1",
 };
 
 // The tracker's hero pig wiggles its ears faster while the one-shot
@@ -55,6 +56,7 @@ const EAR_ANIMATION: Record<NonNullable<PigMascotProps["animation"]>, string> = 
   bob: "pigEarWiggle 2.6s ease-in-out infinite",
   party: "pigEarWiggle 2.6s ease-in-out infinite",
   celebrate: "pigEarWiggle 0.5s ease-in-out infinite",
+  tap: "pigEarWiggle 2.6s ease-in-out infinite",
 };
 
 export function PigMascot({ className, width = 70, height = 66, animation = "spin", medal = false }: PigMascotProps) {

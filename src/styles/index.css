@@ -910,6 +910,19 @@ body {
   }
 }
 
+@keyframes pigTapBounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  40% {
+    transform: translateY(-10px) scale(1.05);
+  }
+  60% {
+    transform: translateY(2px) scale(0.98);
+  }
+}
+
 @keyframes pigCelebrate {
   0%,
   100% {

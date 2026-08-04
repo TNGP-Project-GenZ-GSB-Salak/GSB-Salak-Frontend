@@ -284,7 +284,7 @@ export function KapookTracker() {
         <div className="sheet-panel flex flex-col items-center text-center">
           <div className="kapook-suggestion-emoji">🎉</div>
           <div className="sheet-panel__title">ยินดีด้วย ยอดออมของคุณถึงขั้นต่ำสำหรับซื้อสลากแล้ว</div>
-          <div className="bullet-list mt-2 w-full">
+          <div className="bullet-list mt-2 w-full text-left">
             <div className="bullet-list__item">
               <span className="bullet-list__dot" />
               <span className="bullet-list__text">ร่วมลุ้นรางวัลได้ทุกงวดตั้งแต่ตอนนี้ โดยการซื้อสลาก ไม่ต้องรอออมครบเป้าหมาย</span>

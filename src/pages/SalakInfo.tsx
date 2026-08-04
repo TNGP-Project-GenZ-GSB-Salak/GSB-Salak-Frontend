@@ -1,8 +1,11 @@
+import { useState } from "react";
 import type { CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
 import { Button } from "../components/Button";
 import { PigMascot } from "../components/PigMascot";
+
+const PIG_TAP_DURATION_MS = 500;
 
 const COINS = [
   { size: 24, tx: -46, rot: -24, delay: 0 },
@@ -43,6 +46,18 @@ const CONDITIONS = [
 // was rebuilt to match — informational only, no backend needed.
 export function SalakInfo() {
   const navigate = useNavigate();
+  const [fountainKey, setFountainKey] = useState(0);
+  const [pigTapping, setPigTapping] = useState(false);
+
+  // Matches the prototype's `playFountain`: tapping the pig replays the
+  // coin-fountain animation (it isn't tied to navigation at all — "ซื้อสลาก
+  // ดิจิทัล" below is the only way to actually buy). Remounting the coins via
+  // a changing key restarts their one-shot CSS animation on every tap.
+  function playFountain() {
+    setFountainKey((k) => k + 1);
+    setPigTapping(true);
+    setTimeout(() => setPigTapping(false), PIG_TAP_DURATION_MS);
+  }
 
   return (
     <AppShell showNav={false}>
@@ -81,7 +96,7 @@ export function SalakInfo() {
 
             {COINS.map((coin, i) => (
               <span
-                key={i}
+                key={`${fountainKey}-${i}`}
                 className="salak-info-coin"
                 style={
                   {
@@ -97,8 +112,8 @@ export function SalakInfo() {
               </span>
             ))}
 
-            <button type="button" className="salak-info-mascot" onClick={() => navigate("/salak/buy")} aria-label="ซื้อสลากดิจิทัล">
-              <PigMascot width={120} height={112} animation="bounce" medal />
+            <button type="button" className="salak-info-mascot" onClick={playFountain} data-testid="salak-info-pig" aria-label="เขย่ากระปุก">
+              <PigMascot width={120} height={112} animation={pigTapping ? "tap" : "bounce"} medal />
             </button>
           </div>
 
