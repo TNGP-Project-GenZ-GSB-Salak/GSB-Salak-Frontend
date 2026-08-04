@@ -1533,8 +1533,20 @@ body {
    ============================================================ */
 
 .bottom-sheet-backdrop {
-  position: absolute;
+  /* `fixed` (not `absolute`) so this pins to the real, visible browser
+     viewport — not to .mobile-viewport__inner's own height, which grows
+     with page content and can exceed the viewport on a tall page (a
+     goal-tracker with a long history, for instance). With `absolute`, the
+     sheet would flex-end-align itself to the bottom of that *taller*
+     container instead of the bottom of the screen, landing partway off
+     the bottom of the visible area — exactly what forced a page-level
+     scroll to reach it. `max-width` + `margin:0 auto` keeps it pinned to
+     the phone-width column instead of the full browser window on wider
+     screens (same trick BottomNav already uses). */
+  position: fixed;
   inset: 0;
+  max-width: 28rem;
+  margin: 0 auto;
   z-index: 50;
   display: flex;
   align-items: flex-end;
@@ -1544,6 +1556,8 @@ body {
 .bottom-sheet-panel {
   box-sizing: border-box;
   width: 100%;
+  max-height: 82vh;
+  overflow-y: auto;
 }
 
 .action-sheet {
