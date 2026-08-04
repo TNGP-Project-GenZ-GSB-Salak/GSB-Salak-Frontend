@@ -4,14 +4,17 @@ import * as api from "../lib/api";
 import type { Account } from "../lib/types";
 import { formatTHB, maskAccountNumber } from "../lib/format";
 import { useAuth } from "../context/AuthContext";
+import { useKapook } from "../context/KapookContext";
+import { computeAvailableBalance } from "../lib/kapookStore";
 import { AppShell } from "../components/AppShell";
+import { PigMascot, TipCloud, TipGround } from "../components/PigMascot";
 
 // The prototype's Home quick-action grid (8 tiles) — static/decorative only,
 // same treatment as BottomNav's "scan"/"history" tabs: visible, but nothing
 // is wired behind them (no backend concept of transfers/withdrawals/bills/
-// credit-bureau checks/etc.). The loyalty-points pill and badge-collection
-// promo row are out of scope entirely (no such features exist), so only the
-// header/balance/grid/promo carry over from the prototype's Home screen.
+// credit-bureau checks/etc.). The loyalty-points pill is decorative for the
+// same reason (no loyalty-points backend concept exists) — kept as a static
+// display to match the prototype's header, not a real feature.
 const HOME_ACTIONS = [
   { label: "โอนเงิน", icon: TransferIcon, variant: "pink" },
   { label: "ถอนเงินสด", icon: WithdrawIcon, variant: "pink" },
@@ -23,10 +26,20 @@ const HOME_ACTIONS = [
   { label: "เมนูอื่นๆ", icon: MoreIcon, variant: "pink" },
 ] as const;
 
+function getInitials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+
 export function Home() {
   const { user } = useAuth();
+  const { state: kapookState } = useKapook();
   const [savings, setSavings] = useState<Account | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  const [showBalance, setShowBalance] = useState(true);
+  const availableBalance = savings ? computeAvailableBalance(Number(savings.balance), kapookState.goal) : 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -42,14 +55,37 @@ export function Home() {
   return (
     <AppShell>
       <div className="home-header">
-        <p className="home-header__greeting">สวัสดี</p>
-        <p className="home-header__name">{user?.full_name ?? user?.username}</p>
+        <div className="home-header__top">
+          <div className="home-header__identity">
+            <span className="home-header__avatar" data-testid="user-avatar">
+              {getInitials(user?.full_name ?? user?.username ?? "")}
+            </span>
+            <div>
+              <p className="home-header__greeting">สวัสดี</p>
+              <p className="home-header__name">{user?.full_name ?? user?.username}</p>
+            </div>
+          </div>
+          <span className="home-header__points" data-testid="points-pill">
+            <LockIcon className="h-3 w-3" />
+            1,280 pts
+          </span>
+        </div>
 
         <div className="home-header__balance-block">
           <p className="home-header__eyebrow">ยอดเงินหลัก</p>
-          <p className="home-header__balance" data-testid="main-balance">
-            ฿{savings ? formatTHB(savings.balance) : "0.00"}
-          </p>
+          <div className="home-header__balance-row">
+            <p className="home-header__balance" data-testid="main-balance">
+              {showBalance ? `฿${formatTHB(availableBalance)}` : "฿••••••.••"}
+            </p>
+            <button
+              type="button"
+              className="home-header__balance-toggle"
+              onClick={() => setShowBalance((v) => !v)}
+              data-testid="toggle-balance"
+            >
+              {showBalance ? "ซ่อนยอดเงิน" : "แสดงยอดเงิน"}
+            </button>
+          </div>
           {savings && (
             <p className="home-header__mask">
               บัญชีเงินฝากเผื่อเรียก · {maskAccountNumber(savings.account_number)}
@@ -72,14 +108,22 @@ export function Home() {
           ))}
         </div>
 
-        <Link to="/salak" data-testid="salak-promo-banner" className="home-promo">
-          <span className="home-promo__icon">
-            <TicketIcon className="h-6 w-6" />
-          </span>
-          <span>
-            <p className="home-promo__title">สลากดิจิทัลใกล้ออกผลแล้ว</p>
-            <p className="home-promo__subtitle">ลุ้นรางวัลทุกเดือน ถอนเงินต้นคืนได้ทุกวันทำการ</p>
-          </span>
+        <Link to="/salak/info" data-testid="salak-promo-banner" className="home-tip-card">
+          <span className="home-tip-card__sun" />
+          <TipCloud className="home-tip-card__cloud" />
+          <TipGround className="home-tip-card__ground" />
+
+          <div className="home-tip-card__header">
+            <span className="home-tip-card__title-row">
+              <span className="home-tip-card__title">สลากดิจิทัลใกล้ออกผลแล้ว</span>
+              <span className="home-tip-card__tag">ทริค</span>
+            </span>
+            <ChevronIcon className="home-tip-card__chevron h-4 w-4" />
+          </div>
+          <p className="home-tip-card__body">
+            ไม่ต้องรอมีเงินก้อน 1,000 บาท ใช้กระปุกหมูออมหยอดเก็บทีละนิดจนครบ แล้วค่อยซื้อสลากได้
+          </p>
+          <PigMascot className="home-tip-card__mascot" />
         </Link>
       </div>
     </AppShell>
@@ -168,14 +212,20 @@ function MoreIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function TicketIcon(props: SVGProps<SVGSVGElement>) {
+// Transcribed 1:1 from V.4's own padlock icon path (extracted, not redrawn).
+function LockIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...props}>
-      <path
-        d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a1.5 1.5 0 0 0 0 3v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a1.5 1.5 0 0 0 0-3Z"
-        strokeLinejoin="round"
-      />
-      <path d="M9 6v12" strokeDasharray="2 2" />
+    <svg viewBox="0 0 14 16" fill="currentColor" {...props}>
+      <path d="M12.5,8H4.75V4.7813C4.75,3.5625 5.7188,2.5313 6.9688,2.5C8.2188,2.5 9.25,3.5313 9.25,4.75V5.25C9.25,5.6875 9.5625,6 10,6H11C11.4062,6 11.75,5.6875 11.75,5.25V4.75C11.75,2.125 9.5938,0 6.9688,0C4.3438,0.0313 2.25,2.1875 2.25,4.8125V8H1.5C0.6563,8 0,8.6875 0,9.5V14.5C0,15.3438 0.6563,16 1.5,16H12.5C13.3125,16 14,15.3438 14,14.5V9.5C14,8.6875 13.3125,8 12.5,8ZM8.25,12.75C8.25,13.4688 7.6875,14 7,14C6.2813,14 5.75,13.4688 5.75,12.75V11.25C5.75,10.5625 6.2813,10 7,10C7.6875,10 8.25,10.5625 8.25,11.25V12.75Z" />
     </svg>
   );
 }
+
+function ChevronIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...props}>
+      <path d="m9 6 6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+

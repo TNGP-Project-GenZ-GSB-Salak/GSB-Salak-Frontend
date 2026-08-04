@@ -1,0 +1,116 @@
+/* ============================================================
+   MyMo — Spacing, radius, elevation & layout tokens
+   Spacing mirrors the app's 1–80dp margin ramp (multiples of 4).
+   Radii & elevation mirror res/values/dimens cardview_* values.
+   ============================================================ */
+
+:root {
+  /* ---------- Spacing scale (dp → px) ---------- */
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-16: 16px;   /* default gutter */
+  --space-20: 20px;
+  --space-24: 24px;   /* dialog / section padding */
+  --space-28: 28px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-56: 56px;
+  --space-64: 64px;
+  --space-80: 80px;
+
+  /* Full authoritative Sizes.kP* scale (production app_sizes.dart).
+     Additive: fills the gaps the abbreviated ramp above left out.
+     Rule in code: use kP* / kGap* — never raw numeric literals. */
+  --space-1: 1px;
+  --space-18: 18px;
+  --space-30: 30px;
+  --space-36: 36px;
+  --space-44: 44px;
+  --space-60: 60px;
+  --space-72: 72px;
+  --space-96: 96px;
+  --space-104: 104px;
+  --space-112: 112px;
+  --space-120: 120px;
+  --space-128: 128px;
+  --space-132: 132px;
+  --space-140: 140px;
+  --space-148: 148px;
+  --space-156: 156px;
+  --space-180: 180px;
+  --space-208: 208px;
+  --space-232: 232px;
+
+  --gutter: var(--space-16);     /* default screen side padding */
+
+  /* ---------- Corner radius ---------- */
+  --radius-2: 2px;
+  --radius-4: 4px;       /* cardview_corner_radius_m */
+  --radius-8: 8px;       /* cardview_corner_radius_l — standard card / small controls */
+  --radius-10: 10px;
+  --radius-12: 12px;
+  --radius-15: 15px;     /* iOS modal/popup corner (FaceDetection, HomeAds, dialogs) */
+  --radius-16: 16px;     /* cardview_corner_radius_xl — large cards / sheets */
+  --radius-20: 20px;     /* account cards, product cards, chips */
+  --radius-24: 24px;     /* slip card */
+  --radius-25: 25px;     /* legacy Android custom_btn_radius */
+  --radius-28: 28px;     /* GradientPillButton pill (iOS, h56) — primary CTA */
+  --radius-32: 32px;
+  --radius-pill: 999px;
+
+  --radius-card: var(--radius-16);
+  --radius-button: var(--radius-25);
+  --radius-input: var(--radius-8);
+  --radius-sheet: var(--radius-16);
+
+  /* ---------- Elevation / shadows ---------- *
+     The app leans on soft, low-contrast card shadows
+     (shadow_account_card = #CCE9E9EA — pale cool gray, ~80% alpha). */
+  --elevation-1: 0 1px 2px rgba(190, 190, 190, 0.18);
+  --elevation-2: 0 2px 6px rgba(170, 178, 190, 0.20);
+  --elevation-card: 0 4px 16px rgba(150, 160, 175, 0.18);
+  --elevation-4: 0 8px 24px rgba(140, 150, 165, 0.20);
+  --elevation-sheet: 0 -4px 24px rgba(120, 130, 145, 0.16);
+  --elevation-fab: 0 6px 16px rgba(216, 49, 82, 0.32);   /* brand-tinted, for pink FABs */
+
+  /* ---------- Named shadow tokens (production kShadow*) ----------
+     Reconciled from app_sizes.dart. The card/dropdown/input shadows are
+     the real, distinct recipes the app ships — note the bluish #8893A2
+     tint on neutral (input/dropdown) shadows vs black on cards. */
+  --shadow-card: 0 3px 6px rgba(0,0,0,0.16);                    /* kShadowCard — default card */
+  --shadow-dropdown: 0 3px 15px rgba(136,147,162,0.24);        /* kShadowDropdown — dropdown/list cards */
+  --shadow-md-neutral: 4px 4px 15px rgba(136,147,162,0.27);    /* kShadowMdNeutral — white input boxes (bluish) */
+  --shadow-field: 0 4px 4px rgba(0,0,0,0.25);                  /* kShadowField — input-field drop shadow */
+  --shadow-xs: 0 0 2px -1px rgba(0,0,0,0.10), 0 1px 3px 0 rgba(0,0,0,0.10);   /* kShadowXs */
+  --shadow-sm: 0 0 4px -2px rgba(0,0,0,0.10), 0 4px 6px -1px rgba(0,0,0,0.10); /* kShadowSm */
+  --shadow-md: 0 0 6px -4px rgba(0,0,0,0.10), 0 10px 15px -3px rgba(0,0,0,0.10); /* kShadowMd */
+  --shadow-lg: 0 0 10px -6px rgba(0,0,0,0.10), 0 20px 25px -5px rgba(0,0,0,0.10); /* kShadowLg */
+  --shadow-xl: 0 25px 50px -12px rgba(0,0,0,0.25);             /* kShadowXl */
+
+  /* ---------- Layout constants (from dimens.xml) ---------- */
+  --size-toolbar: 56px;          /* default_toolbar_height */
+  --size-tabbar: 56px;           /* bottom_navigation_height */
+  --size-button: 48px;           /* custom_btn_height / confirm_button_height */
+  --size-button-sm: 32px;        /* custom_small_btn_height */
+  --size-touch-min: 44px;        /* minimum hit target */
+  --size-icon-s: 18px;
+  --size-icon-m: 24px;
+  --size-icon-l: 32px;
+  --size-icon-xl: 40px;
+  --size-icon-xxl: 48px;
+  --size-avatar: 100px;          /* home_profile_image_size */
+
+  /* Canvas: production designs at 390×844 (safe areas top 59 / bottom 34). */
+  --canvas-width: 390px;
+  --canvas-height: 844px;
+  --safe-top: 59px;
+  --safe-bottom: 34px;
+
+  --screen-max-width: 430px;     /* phone canvas width for kits */
+}

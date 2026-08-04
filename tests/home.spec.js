@@ -15,13 +15,13 @@ test.describe("home", () => {
     await shoot(page, "verified");
   });
 
-  test("the salak promo banner navigates to /salak", async ({ page }) => {
+  test("the salak promo banner navigates to the product info screen", async ({ page }) => {
     const shoot = createShooter("home", "promo-navigation");
 
     await loginAsDemo(page);
     await page.getByTestId("salak-promo-banner").click();
-    await page.waitForURL("/salak");
-    await shoot(page, "salak-loaded");
+    await page.waitForURL("/salak/info");
+    await shoot(page, "salak-info-loaded");
   });
 
   test("unauthenticated visitor is redirected to login", async ({ page }) => {

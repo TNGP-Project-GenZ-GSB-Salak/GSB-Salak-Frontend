@@ -1,0 +1,210 @@
+/* ============================================================
+   MyMo — Color tokens
+   Source of truth: GSB MyMo Android app (res/values/colors.xml).
+   Base palette first, then semantic aliases that the components use.
+   ============================================================ */
+
+:root {
+  /* ---------- Brand / primary ---------- */
+  --mymo-primary: #D83152;          /* colorPrimary / colorAccent — MyMo crimson-pink */
+  --mymo-primary-dark: #9C233B;     /* colorPrimaryDark — pressed / status */
+  --mymo-primary-12: rgba(216, 49, 82, 0.12);
+  --mymo-primary-24: #3DD83152;     /* mymo_pink_accent_24 */
+
+  /* Brand gradients (buttons + headers) */
+  --mymo-grad-btn-start: #FA7C93;   /* custom_btn_gradient_start */
+  --mymo-grad-btn-end:   #F14658;   /* custom_btn_gradient_end */
+  --mymo-grad-primary-start: #FC7C96;
+  --mymo-grad-primary-end:   #D83152;
+
+  /* ---------- Pink family ---------- */
+  --mymo-pink: #F39AAF;             /* theme_pink */
+  --mymo-pink-landing: #EA6B7A;
+  --mymo-pastel-pink: #FEE5EF;
+  --mymo-status-bar: #FEB1C4;
+  --mymo-footer-frame: #FBEAEE;
+  --mymo-epassbook-border: #FFA8BE;
+
+  /* ---------- Accent themes ---------- */
+  --mymo-green: #9FEDF2;            /* theme_green — pale cyan */
+  --mymo-green-loan: #54BCB5;
+  --mymo-yellow: #FAE694;           /* theme_yellow */
+  --mymo-blue: #76CFF5;             /* theme_blue */
+
+  /* ---------- Neutrals / grays ---------- */
+  --mymo-black: #000000;
+  --mymo-white: #FFFFFF;
+  --mymo-ink: #000000;              /* font_color = mymo_black */
+  --mymo-ink-87: rgba(0, 0, 0, 0.87);
+  --mymo-ink-56: rgba(0, 0, 0, 0.56);
+  --mymo-ink-40: rgba(0, 0, 0, 0.40);
+  --mymo-ink-24: rgba(0, 0, 0, 0.24);
+  --mymo-ink-15: rgba(0, 0, 0, 0.15);
+
+  --mymo-mid-black: #3F3F3F;
+  --mymo-system-gray: #8E8E93;      /* iOS-style system gray */
+  --mymo-gray: #8F8F8F;
+  --mymo-gray-landing: #707070;
+  --mymo-account-gray: #9B9B9B;
+  --mymo-mid-gray: #C7C7CC;
+  --mymo-gray-text: #C2C2C2;
+  --mymo-line-gray: #DFDFE1;        /* dividers / hairlines */
+  --mymo-border-line: #EDEDED;
+  --mymo-bottom-line: #E7E7E7;
+  --mymo-account-row: #EDEFF2;
+  --mymo-light-gray: #F8F8F8;
+  --mymo-light-gray-bg: #F4F4F4;    /* app screen background */
+  --mymo-light-gray-new: #FAFBFC;
+
+  /* ---------- Semantic / status ---------- */
+  --mymo-red: #FF3B30;              /* mymo_red — destructive / minus */
+  --mymo-error: #FF0000;
+  --mymo-success: #2CA87C;          /* eslip_success / opt-in success */
+  --mymo-plus-green: #4CD964;       /* indicative plus (amount up) */
+  --mymo-green-mid: #41B254;
+  --mymo-warning: #FF9500;          /* status_pending */
+  --mymo-link: #007AFF;             /* mymo_mid_blue */
+  --mymo-link-strong: #0000E4;
+
+  /* ---------- Timeline / product category accents ---------- */
+  --mymo-cat-salak: #FF8840;        /* Digital Salak */
+  --mymo-cat-salak-grad: #F9AD4C;
+  --mymo-cat-fixed: #2796E5;        /* Fixed deposit */
+  --mymo-cat-fixed-grad: #25CFE7;
+  --mymo-cat-saving: #E04369;       /* Savings */
+  --mymo-cat-saving-grad: #FF7295;
+  --mymo-cat-loan: #00CDCE;         /* Loan */
+  --mymo-cat-loan-grad: #2CBFCF;
+  --mymo-cat-life: #6B67EA;         /* GSB Life insurance */
+  --mymo-cat-life-grad: #5EA5E7;
+
+  /* ---------- Elevation / shadow colors ---------- */
+  --mymo-shadow-card: rgba(233, 233, 234, 0.80);   /* shadow_account_card #CCE9E9EA */
+  --mymo-shadow-soft: rgba(190, 190, 190, 0.03);   /* shadow_start #08BEBEBE */
+  --mymo-shadow-shortcut: #AFAFAF;
+
+  /* ============================================================
+     SEMANTIC ALIASES — prefer these in components
+     ============================================================ */
+  --color-brand: var(--mymo-primary);
+  --color-brand-dark: var(--mymo-primary-dark);
+
+  --surface-app: var(--mymo-light-gray-bg);   /* screen behind cards */
+  --surface-card: var(--mymo-white);
+  --surface-raised: var(--mymo-white);
+  --surface-subtle: var(--mymo-light-gray);
+  --surface-row: var(--mymo-account-row);
+  --surface-pink-soft: var(--mymo-pastel-pink);
+
+  --text-primary: var(--mymo-ink-87);
+  --text-secondary: var(--mymo-ink-56);
+  --text-tertiary: var(--mymo-system-gray);
+  --text-disabled: var(--mymo-ink-24);
+  --text-on-brand: var(--mymo-white);
+  --text-link: var(--mymo-link);
+
+  --border-hairline: var(--mymo-border-line);
+  --border-divider: var(--mymo-bottom-line);
+  --border-strong: var(--mymo-mid-gray);
+
+  --amount-positive: var(--mymo-plus-green);
+  --amount-negative: var(--mymo-red);
+
+  --status-success: var(--mymo-success);
+  --status-warning: var(--mymo-warning);
+  --status-error: var(--mymo-red);
+}
+
+/* ============================================================
+   AUTHORITATIVE ADDITIONS — reconciled against the production
+   Flutter extraction (app_colors_extension.dart, 2026-07-13, "iOS wins").
+   Additive: existing tokens above are preserved. New/corrected values
+   below use the spec token names (kebab-cased). See DESIGN_SYSTEM_AUDIT.md
+   for the value discrepancies these resolve.
+   ============================================================ */
+:root {
+  /* ---------- Brand / GSB corporate ---------- */
+  --mymo-gsb: #EC068D;                 /* GSB_COLOR — corporate magenta (distinct from MyMo pink) */
+  --mymo-brand-30: rgba(216,49,82,0.30);
+  --mymo-brand-87: rgba(216,49,82,0.87);
+  --mymo-brand-24: rgba(216,49,82,0.24);
+
+  /* ---------- Extended pink family ---------- */
+  --mymo-pink-pastel: #F39AAF;         /* passcode dots (alias of theme_pink) */
+  --mymo-pink-light: #F2A4AD;          /* light pink surfaces / saving product */
+  --mymo-pink-new: #DC3557;            /* PINK_NEW_COLOR */
+  --mymo-pink-system: #FF2D55;         /* iOS system pink */
+  --mymo-pink-system-secondary: #D63252;
+  --mymo-pink-alert: #D83153;          /* security-awareness alerts */
+
+  /* ---------- Text ---------- */
+  --mymo-text-placeholder: #707070;    /* TEXTFILED_TENT_COLOR — input placeholders */
+  --mymo-dark-label: #212121;
+
+  /* ---------- Semantic (corrected to source of truth) ---------- */
+  --mymo-error-true: #DB4949;          /* error / TRANSACTION_UNSUCCESSFUL — the real error red */
+  --mymo-red-system: #FF3B30;          /* redSystem / MINUS_COLOR (was mislabelled as the error color) */
+  --mymo-warning-true: #FFCC00;        /* warning / YELLOW_SYSTEM (was mislabelled #FF9500) */
+  --mymo-orange-system: #FF9500;       /* orangeSystem — NOT warning */
+  --mymo-green-system: #4CD964;
+  --mymo-teal-system: #5AC8FA;
+  --mymo-success-80: rgba(44,168,124,0.80);
+  --mymo-transaction-success: #43D98E; /* status pill accent */
+  --mymo-money-out: #EA6B7A;           /* outgoing amounts (pink, not red) */
+  --mymo-money-in: #2CA87C;            /* incoming amounts */
+  --mymo-disabled: #979797;            /* disabled foreground */
+  --mymo-disabled-bg: #D8D8D8;         /* disabled fills */
+  --mymo-progress-track: rgba(0,0,0,0.14);
+
+  /* ---------- Extended neutrals / grays ---------- */
+  --mymo-gray-inactive: #C2C2C2;       /* inactive pin dots */
+  --mymo-gray5: #CCCCCC;
+  --mymo-gray1: #C9C9C9;
+  --mymo-gray-extra-light: #EFEFF4;
+  --mymo-gray-extra-light-new: #EFEFEF;
+  --mymo-light-mid-gray: #D1D1D6;
+  --mymo-radial-track: #DCDCDC;
+  --mymo-circle-default: #E8E8E8;      /* avatar / logo circle placeholder */
+  --mymo-next-label: #EDEFF2;          /* section-accent box (alias of account-row) */
+  --mymo-tab-selected-bg: #E7EAED;
+  --mymo-divider: #D1D1D1;             /* SEPERATOR_COLOR — 1px dividers */
+  --mymo-border: #DDDDDD;              /* card borders */
+  --mymo-border-overlay: rgba(0,0,0,0.18);
+  --mymo-surface-gray: #F8F8F8;
+  --mymo-surface-base: #FAFBFC;
+  --mymo-surface-dark: #171717;
+  --mymo-keyboard-toolbar-bg: #F5F5F5;
+
+  /* ---------- Product palette (timeline / product cards) ---------- */
+  --mymo-product-saving: #F2A4AD;
+  --mymo-product-salak: #FAE072;
+  --mymo-product-fund: #54BCB5;
+  --mymo-product-insurance: #8AD4FF;
+  --mymo-promptpay: #0C3E66;           /* PromptPay navy */
+
+  /* ---------- Fund portfolio gradient (purple) ---------- */
+  --mymo-cat-fund-start: #D893F9;
+  --mymo-cat-fund-end: #AB68FF;
+
+  /* ---------- Shadow color ---------- */
+  --mymo-shadow-neutral: #8893A2;      /* bluish input/dropdown shadow tint */
+
+  /* ============================================================
+     Semantic aliases — NEW authoritative money/semantic roles.
+     (Existing --status-* / --amount-* above are kept for back-compat;
+     prefer these going forward.)
+     ============================================================ */
+  --color-gsb: var(--mymo-gsb);
+  --text-placeholder: var(--mymo-text-placeholder);
+
+  --amount-in: var(--mymo-money-in);
+  --amount-out: var(--mymo-money-out);
+
+  --feedback-error: var(--mymo-error-true);
+  --feedback-warning: var(--mymo-warning-true);
+  --feedback-success: var(--mymo-success);
+  --feedback-info: var(--mymo-link);
+
+  --disabled-fg: var(--mymo-disabled);
+  --disabled-bg: var(--mymo-disabled-bg);
+}

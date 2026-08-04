@@ -1,0 +1,12 @@
+/* ============================================================
+   MyMo Design System — global entry point
+   GSB (Government Savings Bank) Thailand · mobile banking app
+   Consumers link THIS file. It only @imports token + font files.
+   ============================================================ */
+
+@import "tokens/fonts.css";
+@import "tokens/colors.css";
+@import "tokens/typography.css";
+@import "tokens/text-styles.css";
+@import "tokens/spacing.css";
+@import "tokens/motion.css";

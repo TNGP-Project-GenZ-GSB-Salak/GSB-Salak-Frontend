@@ -1,0 +1,24 @@
+/* ============================================================
+   MyMo — Motion tokens
+   Source of truth: kMotion* in app_sizes.dart (production Flutter).
+   kMotionDefault (300ms) is the legacy iOS default
+   (Dimensions.defaultAnimationDuration 0.3s). The rest formalize the
+   durations the migrated widgets already ship.
+
+   Curves: easeInOut for open/close & slides, easeOut for entrances.
+   Screen transitions use the platform default (iOS push slide).
+   No parallax, no scroll-triggered effects.
+   ============================================================ */
+
+:root {
+  --motion-fast:      150ms; /* @kind other */ /* kMotionFast — chevron / icon rotations */
+  --motion-quick:     200ms; /* @kind other */ /* kMotionQuick — accordion, slide-to-send snap-back */
+  --motion-standard:  250ms; /* @kind other */ /* kMotionStandard — segmented-tab pill slide */
+  --motion-default:   300ms; /* @kind other */ /* kMotionDefault — sheet/popup, dialog fades */
+  --motion-carousel:  350ms; /* @kind other */ /* kMotionCarousel — banner auto-slide step */
+  --motion-entrance:  400ms; /* @kind other */ /* kMotionEntrance — detail-header spring-in */
+
+  /* Easing */
+  --ease-standard: cubic-bezier(0.4, 0.0, 0.2, 1); /* @kind other */ /* easeInOut */
+  --ease-out:      cubic-bezier(0.0, 0.0, 0.2, 1); /* @kind other */ /* easeOut */
+}

@@ -1,0 +1,80 @@
+/* ============================================================
+   MyMo — Webfonts
+   SF Pro Display (shipped from the Android app's res/font).
+   Five weights: Light 300 · Regular 400 · Medium 500 · SemiBold 600 · Bold 700
+   ============================================================ */
+
+@font-face {
+  font-family: "SF Pro Display";
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+  src: url("../assets/fonts/sf_pro_display_light.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "SF Pro Display";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("../assets/fonts/sf_pro_display_regular.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "SF Pro Display";
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: url("../assets/fonts/sf_pro_display_medium.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "SF Pro Display";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("../assets/fonts/sf_pro_display_semi_bold.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "SF Pro Display";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("../assets/fonts/sf_pro_display_bold.otf") format("opentype");
+}
+
+/* ---- SF Pro Text — Semibold-only per the iOS AppFontFamily split
+   (the 47 text-style tokens use SF Pro Text for w600). Regular/Medium/Bold
+   are wired too so the family is complete if referenced directly. ---- */
+@font-face {
+  font-family: "SF Pro Text";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("../fonts/SF-Pro-Text-Regular.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "SF Pro Text";
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: url("../fonts/SF-Pro-Text-Medium.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "SF Pro Text";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("../fonts/SF-Pro-Text-Semibold.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "SF Pro Text";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("../fonts/SF-Pro-Text-Bold.otf") format("opentype");
+}

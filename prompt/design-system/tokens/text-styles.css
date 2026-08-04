@@ -1,0 +1,87 @@
+/* ============================================================
+   MyMo — Text style tokens (the 47 named styles)
+   Source of truth: appTexts.* in app_text_extension.dart (production Flutter),
+   originating from the legacy iOS Fonts.swift ramp.
+
+   Family split mirrors iOS AppFontFamily:
+     • SF Pro Display — every Light / Regular / Medium / Bold token
+     • SF Pro Text    — the Semibold (w600) tokens ONLY
+
+   ⚠ SUBSTITUTION: this design system ships SF Pro Display .otf only
+   (assets/fonts/). SF Pro Text is NOT bundled, so the Semibold tokens
+   fall back to SF Pro Display Semibold via --font-text below. Swap the
+   stack here if the real SF Pro Text faces get added.
+
+   Minimum tokenized size is 12 (kMinFontSize). Legacy 8–10pt styles are
+   intentionally NOT tokenized — do not reintroduce --text-8 / --text-10.
+
+   Each token is exposed two ways:
+     1. CSS vars   --ts-<token>-size / -weight / -family
+     2. Utility class  .ts-<token>  (sets font-family/size/weight in one shot)
+   ============================================================ */
+
+:root {
+  /* The Semibold family. Falls back to Display until SF Pro Text is shipped. */
+  --font-display: "SF Pro Display", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-text: "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+  /* weights */
+  --ts-w-light: 300; /* @kind other */
+  --ts-w-regular: 400; /* @kind other */
+  --ts-w-medium: 500; /* @kind other */
+  --ts-w-semibold: 600; /* @kind other */
+  --ts-w-bold: 700; /* @kind other */}
+
+/* Body ------------------------------------------------------- */
+.ts-bodyXsRegular   { font-family: var(--font-display); font-size: 11px; font-weight: 400; }
+.ts-bodyXsBold      { font-family: var(--font-display); font-size: 11px; font-weight: 700; }
+.ts-body12Regular   { font-family: var(--font-display); font-size: 12px; font-weight: 400; }
+.ts-body12Medium    { font-family: var(--font-display); font-size: 12px; font-weight: 500; }
+.ts-body12Bold      { font-family: var(--font-display); font-size: 12px; font-weight: 700; }
+.ts-bodySmRegular   { font-family: var(--font-display); font-size: 13px; font-weight: 400; }
+.ts-bodySmMedium    { font-family: var(--font-display); font-size: 13px; font-weight: 500; }
+.ts-bodySmSemibold  { font-family: var(--font-text);    font-size: 13px; font-weight: 600; }
+.ts-bodySmBold      { font-family: var(--font-display); font-size: 13px; font-weight: 700; }
+.ts-bodyMdRegular   { font-family: var(--font-display); font-size: 14px; font-weight: 400; }
+.ts-bodyMdMedium    { font-family: var(--font-display); font-size: 14px; font-weight: 500; }
+.ts-bodyMdSemibold  { font-family: var(--font-text);    font-size: 14px; font-weight: 600; }
+.ts-bodyMdBold      { font-family: var(--font-display); font-size: 14px; font-weight: 700; }
+.ts-body15Regular   { font-family: var(--font-display); font-size: 15px; font-weight: 400; }
+.ts-body15Medium    { font-family: var(--font-display); font-size: 15px; font-weight: 500; }
+.ts-body15Bold      { font-family: var(--font-display); font-size: 15px; font-weight: 700; }
+.ts-bodyLgRegular   { font-family: var(--font-display); font-size: 16px; font-weight: 400; }
+.ts-bodyLgMedium    { font-family: var(--font-display); font-size: 16px; font-weight: 500; }
+.ts-bodyLgSemibold  { font-family: var(--font-text);    font-size: 16px; font-weight: 600; }
+.ts-bodyLgBold      { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
+.ts-bodyXlRegular   { font-family: var(--font-display); font-size: 17px; font-weight: 400; }
+.ts-bodyXlMedium    { font-family: var(--font-display); font-size: 17px; font-weight: 500; }
+.ts-bodyXlSemibold  { font-family: var(--font-text);    font-size: 17px; font-weight: 600; }
+.ts-bodyXlBold      { font-family: var(--font-display); font-size: 17px; font-weight: 700; }
+
+/* Title ------------------------------------------------------ */
+.ts-titleSmRegular  { font-family: var(--font-display); font-size: 18px; font-weight: 400; }
+.ts-titleSmMedium   { font-family: var(--font-display); font-size: 18px; font-weight: 500; }
+.ts-titleSmSemibold { font-family: var(--font-text);    font-size: 18px; font-weight: 600; }
+.ts-titleSmBold     { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+.ts-title19Semibold { font-family: var(--font-text);    font-size: 19px; font-weight: 600; }
+.ts-title19Bold     { font-family: var(--font-display); font-size: 19px; font-weight: 700; }
+.ts-titleMdRegular  { font-family: var(--font-display); font-size: 20px; font-weight: 400; }
+.ts-titleMdMedium   { font-family: var(--font-display); font-size: 20px; font-weight: 500; }
+.ts-titleMdLight    { font-family: var(--font-display); font-size: 20px; font-weight: 300; }
+.ts-titleMdSemibold { font-family: var(--font-text);    font-size: 20px; font-weight: 600; }
+.ts-titleMdBold     { font-family: var(--font-display); font-size: 20px; font-weight: 700; }
+.ts-title22Regular  { font-family: var(--font-display); font-size: 22px; font-weight: 400; }
+.ts-title22Bold     { font-family: var(--font-display); font-size: 22px; font-weight: 700; }
+.ts-titleLgRegular  { font-family: var(--font-display); font-size: 24px; font-weight: 400; }  /* KEY_AMOUNT */
+.ts-titleLgMedium   { font-family: var(--font-display); font-size: 24px; font-weight: 500; }
+.ts-titleLgLight    { font-family: var(--font-display); font-size: 24px; font-weight: 300; }
+.ts-titleLgBold     { font-family: var(--font-display); font-size: 24px; font-weight: 700; }
+.ts-title26Bold     { font-family: var(--font-display); font-size: 26px; font-weight: 700; }
+.ts-title28Bold     { font-family: var(--font-display); font-size: 28px; font-weight: 700; }
+
+/* Display ---------------------------------------------------- */
+.ts-displayMdRegular { font-family: var(--font-display); font-size: 30px; font-weight: 400; }
+.ts-displayMdLight   { font-family: var(--font-display); font-size: 30px; font-weight: 300; }
+.ts-displayMdBold    { font-family: var(--font-display); font-size: 30px; font-weight: 700; }
+.ts-displayLgBold    { font-family: var(--font-display); font-size: 40px; font-weight: 700; }
+.ts-displayXlLight   { font-family: var(--font-display); font-size: 45px; font-weight: 300; }

@@ -12,7 +12,7 @@ async function enterAmountViaKeypad(page, digits) {
 }
 
 test.describe("buy salak", () => {
-  test("mode-choose sheet offers buy-now and a disabled save-first option", async ({ page }) => {
+  test("mode-choose sheet offers buy-now and a save-first option into the Kapook goal-setup flow", async ({ page }) => {
     const shoot = createShooter("buy-salak", "mode-choose");
 
     await loginAsDemo(page);
@@ -21,7 +21,11 @@ test.describe("buy salak", () => {
     await shoot(page, "mode-choose-sheet");
 
     await expect(page.getByTestId("mode-buy-now")).toBeEnabled();
-    await expect(page.getByTestId("mode-save-first")).toBeDisabled();
+    await expect(page.getByTestId("mode-save-first")).toBeEnabled();
+
+    await page.getByTestId("mode-save-first").click();
+    await page.waitForURL(/\/kapook\/(open|goal\/new)/);
+    await shoot(page, "save-first-entry");
   });
 
   test("below-minimum amount is rejected and blocks the slide-to-send control", async ({ page }) => {

@@ -1,0 +1,73 @@
+/* ============================================================
+   MyMo — Typography tokens
+   One typeface: SF Pro Display, across five weights.
+   The Android app builds type from {Light/Regular/Medium/SemiBold/Bold}
+   × a fixed sp ramp (8 → 45sp). Below is the web-mapped ramp.
+   ============================================================ */
+
+:root {
+  /* Family */
+  --font-sans: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-display: var(--font-sans);
+
+  /* Weights (named exactly like the app's text styles) */
+  --weight-light: 300;     /* TextLight  */
+  --weight-regular: 400;   /* TextRegular */
+  --weight-medium: 500;    /* TextMedium */
+  --weight-semibold: 600;  /* TextSemiBold */
+  --weight-bold: 700;      /* TextBold */
+
+  /* Size ramp — mirrors res/values/dimens text_size_* (sp → px) */
+  --text-8:  8px;
+  --text-10: 10px;
+  --text-11: 11px;
+  --text-12: 12px;
+  --text-13: 13px;
+  --text-14: 14px;
+  --text-15: 15px;
+  --text-16: 16px;   /* standard body */
+  --text-17: 17px;
+  --text-18: 18px;
+  --text-19: 19px;
+  --text-20: 20px;
+  --text-22: 22px;
+  --text-23: 23px;
+  --text-24: 24px;
+  --text-26: 26px;
+  --text-28: 28px;
+  --text-30: 30px;
+  --text-36: 36px;
+  --text-40: 40px;   /* balance / hero numerals */
+  --text-45: 45px;
+
+  /* Line heights */
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
+  --leading-normal: 1.45;
+  --leading-relaxed: 1.6;
+
+  /* Semantic roles (role → size + weight) */
+  --type-display-size: var(--text-40);     /* balances, big numerals */
+  --type-display-weight: var(--weight-bold);
+
+  --type-title-size: var(--text-24);       /* screen titles */
+  --type-title-weight: var(--weight-bold);
+
+  --type-heading-size: var(--text-20);     /* section headers */
+  --type-heading-weight: var(--weight-bold);
+
+  --type-subtitle-size: var(--text-18);
+  --type-subtitle-weight: var(--weight-semibold);
+
+  --type-body-size: var(--text-16);        /* standard body / inputs */
+  --type-body-weight: var(--weight-regular);
+
+  --type-label-size: var(--text-14);       /* row labels, buttons-small */
+  --type-label-weight: var(--weight-medium);
+
+  --type-caption-size: var(--text-12);     /* metadata, helper text */
+  --type-caption-weight: var(--weight-regular);
+
+  --type-overline-size: var(--text-11);    /* ALL-CAPS eyebrows (e.g. MAIN BALANCE) */
+  --type-overline-weight: var(--weight-semibold);
+}

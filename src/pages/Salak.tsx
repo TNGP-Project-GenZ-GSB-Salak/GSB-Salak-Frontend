@@ -1,27 +1,32 @@
 import { useEffect, useState, type SVGProps } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
-import type { Account, Holding } from "../lib/types";
+import type { Account, Holding, SalakProduct } from "../lib/types";
 import { formatTHB, maskAccountNumber } from "../lib/format";
+import { cumulativeCommitted, goalProgressPct, isGoalTargetReached } from "../lib/kapookStore";
+import { useKapook } from "../context/KapookContext";
 import { AppShell } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
 import { HoldingCard } from "../components/HoldingCard";
+import { Countdown } from "../components/Countdown";
 
-// The prototype's 4-icon quick-action row. Only "ซื้อสลาก" (-> the buy-list
-// screen) is wired, matching the prototype's own goBuyList binding; the rest
-// (product info / issue history / settings) have no corresponding screens
-// built yet and stay decorative.
+// The prototype's 4-icon quick-action row. "ซื้อสลาก" (-> the buy-list screen)
+// and "ข้อมูลผลิตภัณฑ์" (-> the salakInfo screen) are wired; the rest (issue
+// history / settings) have no corresponding screens built yet and stay
+// decorative.
 const SALAK_QUICK_ACTIONS = [
-  { label: "ซื้อสลาก", icon: BuyIcon, to: "/salak/buy" },
-  { label: "ข้อมูลผลิตภัณฑ์", icon: InfoIcon, to: null },
-  { label: "ประวัติการออก", icon: ScheduleIcon, to: null },
-  { label: "ตั้งค่า", icon: GearIcon, to: null },
+  { label: "ซื้อสลาก", icon: BuyIcon, to: "/salak/buy", testId: "salak-buy-action" },
+  { label: "ข้อมูลผลิตภัณฑ์", icon: InfoIcon, to: "/salak/info", testId: "salak-info-action" },
+  { label: "ประวัติการออก", icon: ScheduleIcon, to: null, testId: undefined },
+  { label: "ตั้งค่า", icon: GearIcon, to: null, testId: undefined },
 ] as const;
 
 export function Salak() {
   const navigate = useNavigate();
+  const { state: kapookState, dismissAutoPurchaseNotice } = useKapook();
   const [salakAccount, setSalakAccount] = useState<Account | null | undefined>(undefined);
   const [holdings, setHoldings] = useState<Holding[] | null>(null);
+  const [products, setProducts] = useState<SalakProduct[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -29,10 +34,11 @@ export function Salak() {
 
     async function load() {
       try {
-        const accounts = await api.listAccounts();
+        const [accounts, productList] = await Promise.all([api.listAccounts(), api.listSalakProducts()]);
         if (cancelled) return;
         const account = accounts.find((a) => a.type === "salak") ?? null;
         setSalakAccount(account);
+        setProducts(productList);
 
         if (account) {
           const holdingList = await api.listHoldings(account.id);
@@ -51,6 +57,10 @@ export function Salak() {
     };
   }, []);
 
+  const goal = kapookState.goal;
+  const goalProduct = goal ? products?.find((p) => p.id === goal.productId) : null;
+  const reached = goal ? isGoalTargetReached(goal) : false;
+
   return (
     <AppShell>
       <PageHeader title="สลากดิจิทัล" variant="close" onAction={() => navigate("/")} />
@@ -66,10 +76,62 @@ export function Salak() {
         <p className="salak-balance-card__label">ยอดฝากสลากทั้งหมด</p>
       </div>
 
+      {kapookState.autoPurchaseNotice != null && (
+        <div className="salak-auto-purchase-banner" data-testid="auto-purchase-banner">
+          <span className="salak-auto-purchase-banner__icon">
+            <BuyIcon className="h-[18px] w-[18px]" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="salak-auto-purchase-banner__title">ระบบซื้อสลากให้คุณอัตโนมัติแล้ว :)</p>
+            <p className="salak-auto-purchase-banner__body">
+              ครบกำหนด 24 ชั่วโมง ได้รับสลาก ฿{formatTHB(kapookState.autoPurchaseNotice)} เรียบร้อย
+            </p>
+          </div>
+          <button
+            type="button"
+            className="salak-auto-purchase-banner__dismiss"
+            onClick={dismissAutoPurchaseNotice}
+            aria-label="ปิด"
+            data-testid="auto-purchase-banner-dismiss"
+          >
+            <CloseIcon className="h-[18px] w-[18px]" />
+          </button>
+        </div>
+      )}
+
+      {goal && (
+        <div className="px-4 pt-3">
+          <button type="button" onClick={() => navigate("/kapook")} className="salak-goal-card" data-testid="salak-goal-card">
+            <span className="salak-goal-card__icon">
+              <BuyIcon className="h-[22px] w-[22px]" />
+            </span>
+            <div className="flex-1 min-w-0 text-left">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="salak-goal-card__title">กำลังออมเพื่อซื้อ {goalProduct?.name ?? ""}</span>
+                <span className="salak-goal-card__pct">{goalProgressPct(goal)}%</span>
+              </div>
+              <div className="salak-goal-card__bar">
+                <div className="salak-goal-card__bar-fill" style={{ width: `${goalProgressPct(goal)}%` }} />
+              </div>
+              <p className="salak-goal-card__meta">
+                ฿{formatTHB(cumulativeCommitted(goal))} จาก ฿{formatTHB(goal.targetAmount)}
+              </p>
+              {reached && goal.goalReachedAt && (
+                <p className="salak-goal-card__countdown">
+                  ระบบจะซื้อสลากให้อัตโนมัติใน{" "}
+                  <Countdown deadline={new Date(new Date(goal.goalReachedAt).getTime() + 24 * 60 * 60 * 1000).toISOString()} />
+                </p>
+              )}
+            </div>
+            <ChevronIcon className="h-[18px] w-[18px]" />
+          </button>
+        </div>
+      )}
+
       <div className="salak-quick-actions">
         {SALAK_QUICK_ACTIONS.map((action) =>
           action.to ? (
-            <Link to={action.to} className="salak-quick-actions__item" key={action.label} data-testid="salak-buy-action">
+            <Link to={action.to} className="salak-quick-actions__item" key={action.label} data-testid={action.testId}>
               <span className="salak-quick-actions__icon">
                 <action.icon className="h-[22px] w-[22px]" />
               </span>
@@ -122,6 +184,22 @@ function BuyIcon(props: SVGProps<SVGSVGElement>) {
         d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a1.5 1.5 0 0 0 0 3v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a1.5 1.5 0 0 0 0-3Z"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function CloseIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...props}>
+      <path d="m6 6 12 12M18 6 6 18" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ChevronIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...props}>
+      <path d="m9 6 6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
