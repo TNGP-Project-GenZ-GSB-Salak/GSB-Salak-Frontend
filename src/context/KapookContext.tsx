@@ -59,14 +59,25 @@ function pushTransaction(
 }
 
 // prompt/README.md §Piggy closing conditions: a goal closes only when its
-// saved balance hits zero AND the cumulative amount ever committed to it
-// (saved + already spent buying Salak from it) has reached the target. If
-// saved hits zero for any other reason, the goal stays open at saved=0,
-// ready for more deposits. `goalReachedAt`, once set, is never cleared
-// except by this closing — a partial withdrawal or purchase that doesn't
-// fully empty the piggy must not cancel a running countdown.
+// saved balance hits zero AND the goal has *ever* genuinely reached its
+// target (goalReachedAt is set — the same sticky marker the countdown/party
+// mode use, prompt/README.md's "must persist across navigation"). If saved
+// hits zero for any other reason (goalReachedAt still null), the goal stays
+// open at saved=0, ready for more deposits.
+//
+// This deliberately does NOT re-derive "reached" from the live
+// cumulativeCommitted total: a forced full withdrawal during the
+// auto-purchase countdown (the only way to bail out — KapookWithdraw.tsx)
+// drains savedAmount to 0 while purchasedAmount is still 0, which would
+// make a *live* isGoalTargetReached check go false again (cumulative drops
+// back under target) and wrongly leave the goal open forever with the
+// countdown still ticking. Purchases never hit this — moving money from
+// saved to purchased never changes the cumulative sum — so goalReachedAt
+// is the only case that can diverge from a live check, and it's the one
+// prompt/README.md §14's "withdrawing to 0 during the countdown closes the
+// piggy immediately, because the target has been reached" is describing.
 function applyClosingRule(goal: KapookGoal): KapookGoal | null {
-  if (goal.savedAmount <= 0 && isGoalTargetReached(goal)) return null;
+  if (goal.savedAmount <= 0 && goal.goalReachedAt !== null) return null;
   return goal;
 }
 
@@ -127,6 +138,7 @@ export function KapookProvider({ children }: { children: ReactNode }) {
           purchasedCount: 0,
           createdAt: new Date().toISOString(),
           goalReachedAt: null,
+          salakSuggestionSeen: false,
         },
       });
     },
@@ -136,9 +148,17 @@ export function KapookProvider({ children }: { children: ReactNode }) {
   const deposit = useCallback(
     (amount: number) => {
       if (!state.goal || amount <= 0) return;
-      const goal: KapookGoal = { ...state.goal, savedAmount: state.goal.savedAmount + amount };
+      const savedBefore = state.goal.savedAmount;
+      const goal: KapookGoal = { ...state.goal, savedAmount: savedBefore + amount };
       if (!goal.goalReachedAt && isGoalTargetReached(goal)) {
         goal.goalReachedAt = new Date().toISOString();
+      }
+      // Marked atomically here (rather than via a separate action called
+      // right after deposit()) — a second persist() call from the page
+      // component would read this same stale `state` closure and clobber
+      // the deposit it just wrote, since React hasn't re-rendered yet.
+      if (!goal.salakSuggestionSeen && savedBefore < 1000 && goal.savedAmount >= 1000) {
+        goal.salakSuggestionSeen = true;
       }
       let next: KapookState = { ...state, goal };
       next = pushTransaction(next, goal.id, "deposit", amount, 0);

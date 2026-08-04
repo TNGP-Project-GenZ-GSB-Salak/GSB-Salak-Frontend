@@ -72,7 +72,7 @@ export function KapookBuyFromPiggy() {
         <div className="flex flex-col gap-1" style={{ minHeight: "calc(100% - 62px)" }}>
           <div className="flex flex-1 flex-col gap-1 p-4">
             <p className="transfer-label">จาก</p>
-            <div className="gradient-card gradient-card--savings">
+            <div className="gradient-card gradient-card--piggy">
               <div className="gradient-card__top">
                 <div>
                   <p className="gradient-card__label">บัญชีกระปุกออมสลาก</p>

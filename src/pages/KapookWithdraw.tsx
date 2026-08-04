@@ -1,34 +1,52 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { formatTHB } from "../lib/format";
-import { withdrawFee } from "../lib/kapookStore";
+import * as api from "../lib/api";
+import type { Account } from "../lib/types";
+import { formatTHB, formatDate, maskAccountNumber } from "../lib/format";
+import { freeWithdrawalsRemaining as computeFreeRemaining, withdrawFee } from "../lib/kapookStore";
 import { AppShell } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
+import { Button } from "../components/Button";
+import { SlideToConfirm } from "../components/SlideToConfirm";
 import { BottomSheet } from "../components/BottomSheet";
 import { Keypad } from "../components/Keypad";
-import { Button } from "../components/Button";
-import { Card } from "../components/Card";
-import { SlideToConfirm } from "../components/SlideToConfirm";
 import { useKapook } from "../context/KapookContext";
 
-type Step = "amount" | "confirm" | "success";
-type Sheet = "amount" | "keypad" | null;
+type Step = "amount" | "success";
 
-// Matches the prototype's goalWithdraw -> withdrawConfirm -> withdrawSuccess
-// screens (prompt/prototype-reference.html). A partial, user-chosen amount
-// is normally allowed, with a "withdraw everything" shortcut — but
-// prompt/README.md §13: while the goal-reached auto-purchase countdown is
-// running, withdrawal is forced to the full saved amount and the custom
-// keypad is disabled (this is how a user "bails out" of the countdown —
-// there's no separate bail-out action; the fee/quota rules still apply
-// uniformly here, same as any other withdrawal).
+// Matches the prototype's goalWithdraw -> withdrawSuccess screens
+// (prompt/prototype-reference.html, and designs/…V.5.html): a "จาก" (piggy,
+// pink) / "ถึง" (destination account, blue) two-card layout identical in
+// shape to KapookDeposit's, tapping the amount goes *directly* to the
+// keypad (no separate "เต็มจำนวน/ระบุจำนวนเงิน" chooser — that was this
+// codebase's own invention, not in the reference), and the confirm step is
+// a centered modal *over* this same screen, not a full-screen step. A
+// partial, user-chosen amount is normally allowed — but prompt/README.md
+// §13: while the goal-reached auto-purchase countdown is running,
+// withdrawal is forced to the full saved amount and the keypad is disabled
+// (this is how a user "bails out" of the countdown — there's no separate
+// bail-out action; the fee/quota rules still apply uniformly here, same as
+// any other withdrawal).
 export function KapookWithdraw() {
   const navigate = useNavigate();
-  const { state, freeWithdrawalsRemaining, withdraw } = useKapook();
+  const { state, withdraw } = useKapook();
+  const [destAccount, setDestAccount] = useState<Account | null>(null);
   const [step, setStep] = useState<Step>("amount");
-  const [sheet, setSheet] = useState<Sheet>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [keypadOpen, setKeypadOpen] = useState(false);
   const [amount, setAmount] = useState(0);
   const [keypadInput, setKeypadInput] = useState("");
+  const [successAt, setSuccessAt] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.listAccounts().then((list) => {
+      if (!cancelled) setDestAccount(list.find((a) => a.type === "savings") ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const forcedFull = !!state.goal?.goalReachedAt;
 
@@ -37,6 +55,17 @@ export function KapookWithdraw() {
   }, [forcedFull, state.goal]);
 
   const fee = useMemo(() => withdrawFee(amount, state), [amount, state]);
+  // Free-withdrawal count *before* this pending withdrawal — drives the
+  // confirm modal's badge/warning copy (prompt/prototype-reference.html's
+  // stageWithdrawAmount/pendingFreeUsed).
+  const remainingBefore = useMemo(() => computeFreeRemaining(state), [state]);
+  const feeApplies = remainingBefore <= 0;
+  const isLastFree = !feeApplies && remainingBefore === 1;
+  const showRedWarning = feeApplies || isLastFree;
+  const warnText = feeApplies
+    ? "ถอนเกินสิทธิ์ฟรีแล้ว หักค่าธรรมเนียม 2%"
+    : "ใช้สิทธิ์ถอนฟรีหมดแล้ว ครั้งต่อไปจะเสียค่าธรรมเนียม 2%";
+  const badgeText = `เหลือสิทธิ์ถอนฟรี: ${Math.max(0, remainingBefore - 1)} ครั้ง/ปี`;
 
   // A full withdrawal that also empties the goal closes it (state.goal
   // becomes null) as soon as the context updates — but the user still needs
@@ -44,47 +73,64 @@ export function KapookWithdraw() {
   if (!state.goal && step !== "success") return <Navigate to="/kapook" replace />;
   const goal = state.goal;
   const canWithdraw = !!goal && amount > 0 && amount <= goal.savedAmount;
-
-  function closeSheet() {
-    setSheet(null);
-  }
-
-  function pickAmount(value: number) {
-    setAmount(value);
-    setSheet(null);
-  }
+  const net = amount - fee;
 
   function openKeypad() {
+    if (forcedFull) return;
     setKeypadInput(amount ? String(amount) : "");
-    setSheet("keypad");
+    setKeypadOpen(true);
   }
 
   function keypadConfirm() {
-    setAmount(Math.min(parseInt(keypadInput || "0", 10) || 0, (goal?.savedAmount ?? 0)));
+    setAmount(Math.min(parseInt(keypadInput || "0", 10) || 0, goal?.savedAmount ?? 0));
     setKeypadInput("");
-    setSheet(null);
+    setKeypadOpen(false);
   }
 
   function handleFinalConfirm() {
     withdraw(amount);
+    setSuccessAt(new Date().toISOString());
+    setConfirmOpen(false);
     setStep("success");
   }
 
   return (
     <AppShell showNav={false}>
       {step === "amount" && <PageHeader title="ถอนเงิน" variant="close" onAction={() => navigate("/kapook")} />}
-      {step === "confirm" && <PageHeader title="ยืนยันการถอนเงิน" variant="back" onAction={() => setStep("amount")} />}
-      {step === "success" && <PageHeader title="ถอนเงินสำเร็จ" variant="plain" />}
+      {step === "success" && <PageHeader title="ถอนเงิน" variant="plain" />}
 
       {step === "amount" && (
         <div className="flex flex-col gap-1" style={{ minHeight: "calc(100% - 62px)" }}>
-          <div className="flex flex-1 flex-col gap-3 p-4">
-            <p className="text-muted">จากยอดออมที่มี ฿{formatTHB((goal?.savedAmount ?? 0))}</p>
+          <div className="flex flex-1 flex-col gap-1 p-4">
+            <p className="transfer-label">จาก</p>
+            <div className="gradient-card gradient-card--piggy">
+              <div className="gradient-card__top">
+                <div>
+                  <p className="gradient-card__label">บัญชีกระปุกออมสลาก</p>
+                  <p className="gradient-card__meta mt-1">{state.account?.accountNumber ?? ""}</p>
+                </div>
+                <p className="gradient-card__balance mt-1">฿{formatTHB(goal?.savedAmount ?? 0)}</p>
+              </div>
+            </div>
+
+            <p className="transfer-label transfer-label--static mt-3">
+              <span>ถึง</span>
+              <DownChevronIcon className="h-3 w-3" />
+            </p>
+            <div className="gradient-card gradient-card--savings">
+              <div className="gradient-card__top">
+                <div>
+                  <p className="gradient-card__label">บัญชีเงินฝากเผื่อเรียก</p>
+                  <p className="gradient-card__meta mt-1">{destAccount ? maskAccountNumber(destAccount.account_number) : ""}</p>
+                </div>
+              </div>
+            </div>
+
             <button
               type="button"
-              onClick={() => !forcedFull && setSheet("amount")}
+              onClick={openKeypad}
               disabled={forcedFull}
-              className="transfer-amount-trigger"
+              className="transfer-amount-trigger mt-3"
               data-testid="withdraw-amount-trigger"
             >
               <span className="transfer-amount-trigger__label">ถอนเท่าไหร่</span>
@@ -92,39 +138,16 @@ export function KapookWithdraw() {
                 {formatTHB(amount)}
               </span>
             </button>
+            <p className="text-muted text-center">ถอนได้สูงสุด ฿{formatTHB(goal?.savedAmount ?? 0)}</p>
             {forcedFull && (
               <p className="text-muted text-center">ถอนเต็มจำนวนเนื่องจากอยู่ในช่วงนับถอยหลังซื้อสลากอัตโนมัติ</p>
             )}
-            <p className="text-muted">เหลือสิทธิ์ถอนฟรี: {freeWithdrawalsRemaining} ครั้ง</p>
+            <p className="text-muted text-center mt-3">*ถอนก่อนครบเป้าหมายได้ปีละ 2 ครั้งฟรี ครั้งถัดไปเสียค่าธรรมเนียม 2% ของยอดถอน</p>
           </div>
-          <div className="p-5">
-            <SlideToConfirm label="เลื่อนเพื่อถอนเงิน" disabled={!canWithdraw} onConfirm={() => setStep("confirm")} />
-          </div>
-        </div>
-      )}
 
-      {step === "confirm" && (
-        <div className="flex flex-col gap-4 p-4">
-          <div className="confirm-amount-block">
-            <p className="confirm-amount-label">ยอดถอน</p>
-            <p className="confirm-amount-value">฿{formatTHB(amount)}</p>
-            <p className="confirm-amount-fee">
-              {fee > 0 ? `หักค่าธรรมเนียม 2% (฿${formatTHB(fee)})` : "ไม่มีค่าธรรมเนียม (ใช้สิทธิ์ถอนฟรี)"}
-            </p>
+          <div className="p-5">
+            <SlideToConfirm label="เลื่อนเพื่อถอนเงิน" disabled={!canWithdraw} onConfirm={() => setConfirmOpen(true)} />
           </div>
-          <Card>
-            <div className="kv-row">
-              <span className="kv-row__label">โอนเงินไปที่</span>
-              <span className="kv-row__value">บัญชีเงินฝากเผื่อเรียก (บัญชีหลัก)</span>
-            </div>
-            <div className="kv-row">
-              <span className="kv-row__label">ได้รับสุทธิ</span>
-              <span className="kv-row__value">฿{formatTHB(amount - fee)}</span>
-            </div>
-          </Card>
-          <Button onClick={handleFinalConfirm} data-testid="withdraw-confirm-button">
-            ยืนยัน
-          </Button>
         </div>
       )}
 
@@ -133,44 +156,62 @@ export function KapookWithdraw() {
           <div className="receipt-summary__check">
             <CheckIcon />
           </div>
-          <p className="receipt-summary__amount mt-2">฿{formatTHB(amount - fee)}</p>
-          <p className="text-muted">ถอนเงินคืนบัญชีหลักเรียบร้อยแล้ว</p>
+          <p className="text-muted">ถอนเงินสำเร็จ</p>
+          <p className="receipt-summary__amount mt-2">฿{formatTHB(net)}</p>
+          {fee > 0 && (
+            <p className="kapook-confirm-fee-note">
+              หักค่าธรรมเนียม ฿{formatTHB(fee)} จากยอดถอน ฿{formatTHB(amount)}
+            </p>
+          )}
+          <p className="text-muted">{successAt ? formatDate(successAt) : ""}</p>
           <div className="mt-5 w-full">
             <Button onClick={() => navigate(state.goal ? "/kapook" : "/salak")}>เสร็จสิ้น</Button>
           </div>
         </div>
       )}
 
-      <BottomSheet open={sheet === "amount"} onClose={closeSheet}>
-        <div className="action-sheet">
-          <div className="action-sheet__title">กำหนดจำนวนเงินที่จะถอน</div>
-          <button
-            type="button"
-            onClick={() => pickAmount((goal?.savedAmount ?? 0))}
-            className="action-sheet__action"
-            data-testid="withdraw-amount-full"
-          >
-            ถอนเต็ม ฿{(goal?.savedAmount ?? 0).toLocaleString("en-US")}
-          </button>
-          <button type="button" onClick={openKeypad} className="action-sheet__action action-sheet__action--strong" data-testid="withdraw-amount-custom">
-            ระบุจำนวนเงิน
-          </button>
+      {confirmOpen && (
+        <div className="confirm-dialog-backdrop" onClick={() => setConfirmOpen(false)}>
+          <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="kapook-confirm-icon">
+              <InfoIcon />
+            </div>
+            <p className="sheet-panel__title">ยืนยันการถอนเงิน</p>
+            <div className="kapook-confirm-highlight">
+              <span className="kapook-confirm-highlight__amount">฿{formatTHB(net)}</span>
+              <ArrowRightIcon className="h-4 w-4" />
+              <span className="kapook-confirm-highlight__label">บัญชีเงินฝากเผื่อเรียก</span>
+            </div>
+            {fee > 0 && (
+              <p className="kapook-confirm-fee-note">
+                ยอดถอน ฿{formatTHB(amount)} หักค่าธรรมเนียม 2% (฿{formatTHB(fee)})
+              </p>
+            )}
+            {showRedWarning ? <div className="kapook-confirm-warning">{warnText}</div> : <div className="kapook-confirm-badge">{badgeText}</div>}
+            <div className="mt-4 flex gap-2">
+              <div className="flex-1">
+                <Button variant="secondary" onClick={() => setConfirmOpen(false)} data-testid="withdraw-confirm-cancel">
+                  ยกเลิก
+                </Button>
+              </div>
+              <div className="flex-1">
+                <Button onClick={handleFinalConfirm} data-testid="withdraw-confirm-button">
+                  ยืนยัน
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="action-sheet">
-          <button type="button" onClick={closeSheet} className="action-sheet__action action-sheet__action--strong">
-            ยกเลิก
-          </button>
-        </div>
-      </BottomSheet>
+      )}
 
-      <BottomSheet open={sheet === "keypad"} onClose={closeSheet}>
+      <BottomSheet open={keypadOpen} onClose={() => setKeypadOpen(false)}>
         <Keypad
           title="กำหนดจำนวนเงินที่จะถอน"
-          subText={`ถอนได้สูงสุด ฿${formatTHB((goal?.savedAmount ?? 0))}`}
+          subText={`ถอนได้สูงสุด ฿${formatTHB(goal?.savedAmount ?? 0)}`}
           display={keypadInput ? Number(keypadInput).toLocaleString("en-US") : "0"}
           onDigit={(d) => setKeypadInput((prev) => (prev + d).slice(0, 9))}
           onDelete={() => setKeypadInput((prev) => prev.slice(0, -1))}
-          onCancel={closeSheet}
+          onCancel={() => setKeypadOpen(false)}
           onConfirm={keypadConfirm}
         />
       </BottomSheet>
@@ -182,6 +223,32 @@ function CheckIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} className="h-[38px] w-[38px]">
       <path d="m5 13 4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function DownChevronIcon(props: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} {...props}>
+      <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ArrowRightIcon(props: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} {...props}>
+      <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function InfoIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width={28} height={28} fill="none" stroke="currentColor" strokeWidth={2}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5.5" strokeLinecap="round" />
+      <circle cx="12" cy="8" r="0.75" fill="currentColor" stroke="none" />
     </svg>
   );
 }

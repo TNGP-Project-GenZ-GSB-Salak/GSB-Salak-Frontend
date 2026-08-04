@@ -41,6 +41,11 @@ export interface KapookGoal {
   purchasedCount: number;
   createdAt: string;
   goalReachedAt: string | null;
+  // Whether the goalDeposit "ยินดีด้วย ยอดออมของคุณถึงขั้นต่ำสำหรับซื้อสลากแล้ว"
+  // sheet (prompt/CLAUDE_CODE_PROMPT_TH.md screen 11) has already been shown
+  // for this goal — it only ever fires once, the first time savedAmount
+  // crosses ฿1,000.
+  salakSuggestionSeen: boolean;
 }
 
 export type KapookTransactionType = "deposit" | "withdraw" | "withdraw_with_fee" | "buy_salak";

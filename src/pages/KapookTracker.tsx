@@ -17,12 +17,18 @@ import { useKapook } from "../context/KapookContext";
 // State handed from KapookDeposit.tsx's slide-to-confirm success (matches
 // prompt/prototype-reference.html's `completeSlideAction`, which navigates
 // straight to the goalTracker screen and lets *it* own the celebrate
-// bubble/sticker and the goal-reached sheet — they're rendered inside
-// `isGoalTracker`, not on the deposit screen itself).
+// bubble/sticker and the goal-reached/salak-suggestion sheets — they're
+// rendered inside `isGoalTracker`, not on the deposit screen itself).
+// The salak-suggestion sheet (first time savedAmount crosses ฿1,000) takes
+// priority over the goal-reached one if a single deposit triggers both at
+// once — `pendingGoalReachedAfterSuggestion` is how the goal-reached sheet
+// still gets shown right after the suggestion is dismissed.
 export interface KapookCelebrateState {
   celebrate: true;
   celebrateAmount: number;
   celebrateSticker: CelebrateSticker;
+  showSuggestion: boolean;
+  pendingGoalReachedAfterSuggestion: boolean;
   justReachedGoal: boolean;
 }
 
@@ -48,6 +54,18 @@ export function KapookTracker() {
   const celebrateState = location.state as KapookCelebrateState | null;
   const [celebrate, setCelebrate] = useState(celebrateState?.celebrate ?? false);
   const [goalReachedSheet, setGoalReachedSheet] = useState(celebrateState?.justReachedGoal ?? false);
+  const [suggestionSheet, setSuggestionSheet] = useState(celebrateState?.showSuggestion ?? false);
+  const [hideSuggestionChecked, setHideSuggestionChecked] = useState(false);
+
+  function closeSuggestionSheet() {
+    setSuggestionSheet(false);
+    if (celebrateState?.pendingGoalReachedAfterSuggestion) setGoalReachedSheet(true);
+  }
+
+  function buySalakFromSuggestion() {
+    setSuggestionSheet(false);
+    navigate("/kapook/buy");
+  }
 
   useEffect(() => {
     if (!celebrate) return;
@@ -238,36 +256,99 @@ export function KapookTracker() {
         </section>
       </div>
 
-      <BottomSheet open={goalReachedSheet} onClose={() => setGoalReachedSheet(false)}>
-        <div className="sheet-panel flex flex-col items-center text-center">
-          <div className="sheet-panel__title">ออมครบเป้าหมายแล้ว! :)</div>
-          <p className="text-muted">
-            คุณออมครบ ฿{formatTHB(goal.targetAmount)} แล้ว ต้องการซื้อสลากดิจิทัลด้วยยอดที่ออมได้เลยตอนนี้หรือไม่
-          </p>
-          <p className="kapook-sheet-note mt-2">หากยังไม่ซื้อ ระบบจะซื้อสลากให้อัตโนมัติภายใน 24 ชั่วโมง</p>
-          <div className="mt-5 w-full flex gap-2">
-            <Button variant="secondary" onClick={() => setGoalReachedSheet(false)} data-testid="goal-reached-later">
-              ไว้ก่อน
-            </Button>
-            <Button onClick={() => navigate("/kapook/buy")} data-testid="goal-reached-buy-now">
-              ซื้อเลย
-            </Button>
+      {goalReachedSheet && (
+        <div className="confirm-dialog-backdrop" onClick={() => setGoalReachedSheet(false)}>
+          <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
+            <p className="sheet-panel__title">ออมครบเป้าหมายแล้ว! :)</p>
+            <p className="confirm-dialog__message">
+              คุณออมครบ ฿{formatTHB(goal.targetAmount)} แล้ว ต้องการซื้อสลากดิจิทัลด้วยยอดที่ออมได้เลยตอนนี้หรือไม่
+            </p>
+            <p className="kapook-sheet-note mt-2">หากยังไม่ซื้อ ระบบจะซื้อสลากให้อัตโนมัติภายใน 24 ชั่วโมง</p>
+            <div className="mt-4 flex gap-2">
+              <div className="flex-1">
+                <Button variant="secondary" onClick={() => setGoalReachedSheet(false)} data-testid="goal-reached-later">
+                  ไว้ก่อน
+                </Button>
+              </div>
+              <div className="flex-1">
+                <Button onClick={() => navigate("/kapook/buy")} data-testid="goal-reached-buy-now">
+                  ซื้อเลย
+                </Button>
+              </div>
+            </div>
           </div>
+        </div>
+      )}
+
+      <BottomSheet open={suggestionSheet} onClose={closeSuggestionSheet} data-testid="salak-suggestion-sheet">
+        <div className="sheet-panel flex flex-col items-center text-center">
+          <div className="kapook-suggestion-emoji">🎉</div>
+          <div className="sheet-panel__title">ยินดีด้วย ยอดออมของคุณถึงขั้นต่ำสำหรับซื้อสลากแล้ว</div>
+          <div className="bullet-list mt-2 w-full">
+            <div className="bullet-list__item">
+              <span className="bullet-list__dot" />
+              <span className="bullet-list__text">ร่วมลุ้นรางวัลได้ทุกงวดตั้งแต่ตอนนี้ โดยการซื้อสลาก ไม่ต้องรอออมครบเป้าหมาย</span>
+            </div>
+            <div className="bullet-list__item">
+              <span className="bullet-list__dot" />
+              <span className="bullet-list__text">เงินต้นไม่หาย ยังคงนับความคืบหน้าของเป้าหมายเดิมต่อเนื่อง</span>
+            </div>
+          </div>
+          <div className="kapook-suggestion-box mt-4 w-full">
+            <span className="kapook-suggestion-box__badge">SUGGESTION</span>
+            <p className="kapook-suggestion-box__text">
+              ทั้งนี้ การทยอยซื้อสลากเป็นงวดย่อมมีข้อดีในแง่การกระจายโอกาส แต่การซื้อสลากเป็นก้อนใหญ่ในคราวเดียวจะทำให้ท่านได้รับเลขชุดที่ต่อเนื่องกัน
+              ซึ่งเพิ่มโอกาสในการถูกรางวัลเลขท้าย 2 ตัวและ 3-4 ตัวได้มากกว่าการแบ่งซื้อเป็นหลายครั้ง
+            </p>
+          </div>
+          <button
+            type="button"
+            className="kapook-suggestion-checkbox mt-3"
+            onClick={() => setHideSuggestionChecked((v) => !v)}
+            data-testid="salak-suggestion-hide-checkbox"
+          >
+            <span className={`kapook-suggestion-checkbox__box ${hideSuggestionChecked ? "kapook-suggestion-checkbox__box--checked" : ""}`}>
+              {hideSuggestionChecked && <SmallCheckIcon />}
+            </span>
+            <span>ไม่ต้องแสดงคำแนะนำนี้อีก</span>
+          </button>
+          <div className="mt-4 w-full flex gap-2">
+            <div className="flex-1">
+              <Button variant="secondary" onClick={closeSuggestionSheet} data-testid="salak-suggestion-close">
+                ปิด
+              </Button>
+            </div>
+            <div className="flex-1">
+              <Button onClick={buySalakFromSuggestion} data-testid="salak-suggestion-buy-now">
+                ซื้อสลากตอนนี้
+              </Button>
+            </div>
+          </div>
+          <p className="text-muted mt-3">หากยังไม่พร้อมตอนนี้ สามารถกลับมาซื้อได้ภายหลังผ่านปุ่ม "ซื้อสลาก" ในหน้าออมก่อนซื้อสลาก</p>
         </div>
       </BottomSheet>
 
       <BottomSheet open={termsSheetOpen} onClose={() => setTermsSheetOpen(false)}>
         <div className="sheet-panel">
           <div className="sheet-panel__title">ข้อกำหนดและเงื่อนไข การออมในกระปุกเงินฝาก</div>
-          <div className="flex flex-col gap-3">
-            <p className="text-muted">
-              เงินที่เก็บสะสมในกระปุกออมสิน (กระปุกเงินฝาก) จะยงคงได้รับอัตราดอกเบี้ยตามเงื่อนไขบัญชีเงินฝากออมทรัพย์ปกติ
-            </p>
-            <p className="text-muted">
-              ผู้ฝากสามารถถอนเงินออมได้โดยไม่มีค่าธรรมเนียม จำนวนไม่เกน 2 ครั้งต่อปี หากมีการถอนเกินกว่าจำนวนครั้งที่กำหนดในปีถัดไป
-              ธนาคารจะคิดค่าธรรมเนียมใออัตราร้อยละ 2 ของยอดเงินที่ถอน โดยจะหักออกจากยอดเงินดังกล่าวก่อนนำเข้าบัญชีจริง
-            </p>
-            <p className="text-muted">ในกรณีที่ผู้ฝากไม่สามารถออมเงินได้ครบตามจำนวนหรือเงื่อนไขที่กำหนดไว้ จะไม่มีการหักค่าธรรมเนียมหรือค่าปรับใดๆ ทั้งสิ้น</p>
+          <div className="bullet-list">
+            <div className="bullet-list__item">
+              <span className="bullet-list__dot" />
+              <span className="bullet-list__text">
+                เงินที่เก็บสะสมในกระปุกออมสิน (กระปุกเงินฝาก) จะยังคงได้รับอัตราดอกเบี้ยตามเงื่อนไขบัญชีเงินฝากออมทรัพย์ปกติ
+              </span>
+            </div>
+            <div className="bullet-list__item">
+              <span className="bullet-list__dot" />
+              <span className="bullet-list__text">
+                ผู้ฝากสามารถถอนเงินออมได้โดยไม่มีค่าธรรมเนียม จำนวนไม่เกิน 2 ครั้งต่อปี หากมีการถอนเกินกว่าจำนวนครั้งที่กำหนดในปีถัดไป
+                ธนาคารจะคิดค่าธรรมเนียมในอัตราร้อยละ 2 ของยอดเงินที่ถอน โดยจะหักออกจากยอดเงินดังกล่าวก่อนนำเข้าบัญชีจริง
+              </span>
+            </div>
+            <div className="bullet-list__item">
+              <span className="bullet-list__dot" />
+              <span className="bullet-list__text">ในกรณีที่ผู้ฝากไม่สามารถออมเงินได้ครบตามจำนวนหรือเงื่อนไขที่กำหนดไว้ จะไม่มีการหักค่าธรรมเนียมหรือค่าปรับใดๆ ทั้งสิ้น</span>
+            </div>
           </div>
           <div className="mt-5">
             <Button variant="secondary" onClick={() => setTermsSheetOpen(false)}>
@@ -277,6 +358,14 @@ export function KapookTracker() {
         </div>
       </BottomSheet>
     </AppShell>
+  );
+}
+
+function SmallCheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width={12} height={12} fill="none" stroke="#fff" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 13l4 4L19 7" />
+    </svg>
   );
 }
 
