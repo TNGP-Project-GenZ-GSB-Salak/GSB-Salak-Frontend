@@ -89,7 +89,12 @@ export function Accounts() {
               />
             ))}
             {kapookState.account && (
-              <button type="button" onClick={() => navigate("/kapook")} className="gradient-card gradient-card--piggy" data-testid="piggy-account-row">
+              <button
+                type="button"
+                onClick={() => navigate("/salak/buy", { state: { from: "/accounts" } })}
+                className="gradient-card gradient-card--piggy"
+                data-testid="piggy-account-row"
+              >
                 <div className="gradient-card__top">
                   <div>
                     <p className="gradient-card__label">กระปุกออมสลาก</p>

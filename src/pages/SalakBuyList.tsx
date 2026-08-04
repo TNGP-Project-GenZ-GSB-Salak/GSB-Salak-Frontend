@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
 import type { SalakProduct } from "../lib/types";
 import { formatTHB } from "../lib/format";
@@ -22,11 +22,19 @@ type SheetKind = "detail" | "mode" | "piggyExists" | null;
 // exists" modal instead of goal setup.
 export function SalakBuyList() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { state: kapookState } = useKapook();
   const [products, setProducts] = useState<SalakProduct[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sheet, setSheet] = useState<SheetKind>(null);
   const [activeProductId, setActiveProductId] = useState<string | null>(null);
+
+  // Reused from more than one entry point (Salak.tsx's "ซื้อสลาก" quick
+  // action, and Accounts.tsx's piggy-account row) — each expects the close
+  // (X) button to return to wherever it came from, not a single fixed
+  // screen. Defaults to "/salak" so Salak.tsx's existing Link (which passes
+  // no state) keeps its exact current behavior.
+  const backTo = (location.state as { from?: string } | null)?.from ?? "/salak";
 
   useEffect(() => {
     let cancelled = false;
@@ -75,7 +83,7 @@ export function SalakBuyList() {
 
   return (
     <AppShell showNav={false}>
-      <PageHeader title="สลากดิจิทัล" variant="close" onAction={() => navigate("/salak")} />
+      <PageHeader title="สลากดิจิทัล" variant="close" onAction={() => navigate(backTo)} />
 
       <div className="flex flex-col gap-2 p-4">
         {error && <p className="error-box">{error}</p>}
