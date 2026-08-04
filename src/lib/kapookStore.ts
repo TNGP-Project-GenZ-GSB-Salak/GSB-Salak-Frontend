@@ -27,8 +27,20 @@ export function saveState(userId: string, state: KapookState): void {
   localStorage.setItem(storageKey(userId), JSON.stringify(state));
 }
 
+// crypto.randomUUID() is only exposed in secure contexts (https, or the exact
+// hostname "localhost") — testing over a LAN IP (http://192.168.x.x:5174, the
+// common way to open this on a real phone) or in some older mobile browsers
+// throws "crypto.randomUUID is not a function". These are local-only mock
+// IDs, not security-sensitive, so a Math.random fallback is fine.
 export function generateId(): string {
-  return crypto.randomUUID();
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 export function generateAccountNumber(): string {
