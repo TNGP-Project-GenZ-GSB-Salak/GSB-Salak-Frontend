@@ -884,6 +884,111 @@ body {
   }
 }
 
+@keyframes pigBob {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateX(-50%) translateY(-6px) rotate(-1.5deg);
+  }
+}
+
+@keyframes pigParty {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0) rotate(-4deg);
+  }
+  25% {
+    transform: translateX(-50%) translateY(-14px) rotate(4deg);
+  }
+  50% {
+    transform: translateX(-50%) translateY(-4px) rotate(-3deg);
+  }
+  75% {
+    transform: translateX(-50%) translateY(-14px) rotate(4deg);
+  }
+}
+
+@keyframes pigCelebrate {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0) rotate(0deg) scale(1);
+  }
+  30% {
+    transform: translateX(-50%) translateY(-18px) rotate(-7deg) scale(1.06);
+  }
+  60% {
+    transform: translateX(-50%) translateY(-4px) rotate(6deg) scale(1.03);
+  }
+}
+
+@keyframes starTwinkle {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes discoDrop {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes discoSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes coinDrop {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px) rotate(-20deg) scale(0.6);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(4px) rotate(6deg) scale(1.1);
+  }
+  75% {
+    transform: translateY(-4px) rotate(-3deg) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+}
+
+@keyframes bubblePop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 6px) scale(0.85);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -6px) scale(0.95);
+  }
+}
+
 @keyframes speechPop {
   0% {
     opacity: 0;
@@ -1234,6 +1339,12 @@ body {
   margin-top: 0.25rem;
   font-size: 12px;
   color: var(--text-tertiary);
+}
+
+.transaction-row__fee-note {
+  margin-top: 0.125rem;
+  font-size: 11px;
+  color: var(--color-brand);
 }
 
 .transaction-row__amount {
@@ -2028,7 +2139,7 @@ body {
   position: relative;
   overflow: hidden;
   border-radius: 16px;
-  height: 168px;
+  height: 190px;
   background-image: linear-gradient(rgb(190, 235, 255) 0%, rgb(233, 249, 255) 55%, rgb(223, 246, 218) 100%);
 }
 
@@ -2038,6 +2149,106 @@ body {
   left: 50%;
   bottom: 8px;
   transform: translateX(-50%);
+}
+
+.kapook-party-backdrop {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #170b2e 0%, #2a1550 55%, #3b1b52 100%);
+}
+
+.kapook-party-backdrop__star {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.kapook-party-backdrop__glow {
+  position: absolute;
+  top: 4px;
+  left: 25%;
+  width: 100px;
+  height: 100px;
+  margin-left: -50px;
+  background: conic-gradient(
+    from 0deg,
+    rgba(255, 159, 179, 0.18),
+    transparent 20%,
+    rgba(118, 207, 245, 0.15) 40%,
+    transparent 60%,
+    rgba(250, 230, 148, 0.15) 80%,
+    transparent 100%
+  );
+  border-radius: 50%;
+  animation: discoSpin 6s linear infinite reverse;
+  pointer-events: none;
+}
+
+.kapook-party-backdrop__ball-wrap {
+  position: absolute;
+  top: 0;
+  left: 25%;
+  width: 32px;
+  margin-left: -16px;
+  animation: discoDrop 0.9s ease-out;
+}
+
+.kapook-party-backdrop__string {
+  width: 2px;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.55);
+  margin: 0 auto;
+}
+
+.kapook-party-backdrop__ball {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #e9e9f5, #b9b9d6, #fff, #c9c9e6, #8e8eb0, #fff, #e9e9f5);
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.55), 0 6px 16px rgba(0, 0, 0, 0.35);
+  animation: discoSpin 3.5s linear infinite;
+}
+
+.kapook-celebrate-bubble {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  top: 10px;
+  transform: translateX(-50%);
+  background: #fff;
+  border-radius: 14px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-brand);
+  white-space: nowrap;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+  animation: bubblePop 3.2s ease-in-out;
+  text-align: center;
+}
+
+.kapook-celebrate-bubble__note {
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.kapook-celebrate-sticker {
+  position: absolute;
+  bottom: 14px;
+  right: 20px;
+  z-index: 6;
+  animation: coinDrop 1.4s ease-out;
+}
+
+.kapook-sheet-note {
+  border-radius: 10px;
+  background-color: var(--mymo-light-gray-bg);
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
 }
 
 .kapook-summary-card {
@@ -2070,6 +2281,10 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
   background-color: var(--mymo-pastel-pink);
   color: var(--color-brand);
 }

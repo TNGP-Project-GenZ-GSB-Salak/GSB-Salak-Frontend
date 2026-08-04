@@ -46,7 +46,6 @@ function pushTransaction(
   type: KapookTransaction["type"],
   amount: number,
   feeAmount: number,
-  description: string,
 ): KapookState {
   const txn: KapookTransaction = {
     id: generateId(),
@@ -55,7 +54,6 @@ function pushTransaction(
     amount,
     feeAmount,
     createdAt: new Date().toISOString(),
-    description,
   };
   return { ...state, transactions: [txn, ...state.transactions] };
 }
@@ -143,7 +141,7 @@ export function KapookProvider({ children }: { children: ReactNode }) {
         goal.goalReachedAt = new Date().toISOString();
       }
       let next: KapookState = { ...state, goal };
-      next = pushTransaction(next, goal.id, "deposit", amount, 0, "ฝากเข้ากระปุกออม");
+      next = pushTransaction(next, goal.id, "deposit", amount, 0);
       persist(next);
     },
     [state, persist],
@@ -161,14 +159,7 @@ export function KapookProvider({ children }: { children: ReactNode }) {
       const closed = applyClosingRule(withdrawn) === null;
       const goal = closed ? { ...withdrawn, goalReachedAt: null } : withdrawn;
       let next: KapookState = { ...state, goal: closed ? null : goal };
-      next = pushTransaction(
-        next,
-        state.goal.id,
-        fee > 0 ? "withdraw_with_fee" : "withdraw",
-        amount,
-        fee,
-        fee > 0 ? `ถอนเงิน (หักค่าธรรมเนียม 2% ฿${fee.toFixed(2)})` : "ถอนเงินจากกระปุกออม",
-      );
+      next = pushTransaction(next, state.goal.id, fee > 0 ? "withdraw_with_fee" : "withdraw", amount, fee);
       persist(next);
     },
     [state, persist],
@@ -206,7 +197,7 @@ export function KapookProvider({ children }: { children: ReactNode }) {
         const closed = applyClosingRule(purchased) === null;
         const goal = closed ? { ...purchased, goalReachedAt: null } : purchased;
         let next: KapookState = { ...state, goal: closed ? null : goal };
-        next = pushTransaction(next, state.goal.id, "buy_salak", spendAmount, 0, "ซื้อสลากดิจิทัลด้วยยอดเงินจากกระปุกออม");
+        next = pushTransaction(next, state.goal.id, "buy_salak", spendAmount, 0);
         persist(next);
         return receipt;
       } finally {

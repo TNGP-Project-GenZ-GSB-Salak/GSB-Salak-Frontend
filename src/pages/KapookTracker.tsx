@@ -1,26 +1,72 @@
-import { Navigate, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import * as api from "../lib/api";
+import type { SalakProduct } from "../lib/types";
 import { formatTHB, formatDate } from "../lib/format";
 import { cumulativeCommitted, isGoalTargetReached } from "../lib/kapookStore";
 import { AppShell } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
 import { Card } from "../components/Card";
+import { Button } from "../components/Button";
 import { ProgressBar } from "../components/ProgressBar";
 import { Countdown } from "../components/Countdown";
-import { PigMascot, TipCloud, TipGround } from "../components/PigMascot";
+import { BottomSheet } from "../components/BottomSheet";
+import { PigMascot, PartyBackdrop, CelebrateStickerIcon, TipCloud, TipGround, type CelebrateSticker } from "../components/PigMascot";
 import { useKapook } from "../context/KapookContext";
 
+// State handed from KapookDeposit.tsx's slide-to-confirm success (matches
+// prompt/prototype-reference.html's `completeSlideAction`, which navigates
+// straight to the goalTracker screen and lets *it* own the celebrate
+// bubble/sticker and the goal-reached sheet — they're rendered inside
+// `isGoalTracker`, not on the deposit screen itself).
+export interface KapookCelebrateState {
+  celebrate: true;
+  celebrateAmount: number;
+  celebrateSticker: CelebrateSticker;
+  justReachedGoal: boolean;
+}
+
+const CELEBRATE_DURATION_MS = 3200;
+
 // Matches the prototype's goalTracker screen (prompt/prototype-reference.html):
-// a sky/pig hero, a summary card (product + cumulative-committed/target +
-// progress + start date + account number, with the auto-purchase countdown
-// shown *inside* the card once reached), a two-column "พร้อมฝากสลาก" /
-// "ซื้อสลากแล้ว" breakdown, and an ออมเงิน/ถอนเงิน/ซื้อสลาก action row.
-// "ซื้อสลาก" routes to an amount-entry screen (capped + rounded to ฿1,000,
-// prompt/README.md §15) rather than instantly spending the whole balance;
-// the same "ถอนเงิน" screen doubles as the countdown bail-out (forced to the
-// full balance there, prompt/README.md §13) — there's no separate action.
+// a sky/pig hero (swapping to a starry "party mode" backdrop once the goal is
+// reached), a summary card (product + cumulative-committed/target + progress
+// + start date + account number, with the auto-purchase countdown shown
+// *inside* the card once reached), a two-column "พร้อมฝากสลาก" / "ซื้อสลากแล้ว"
+// breakdown, and an ออมเงิน/ถอนเงิน/ซื้อสลาก action row. "ซื้อสลาก" routes to an
+// amount-entry screen (capped + rounded to ฿1,000, prompt/README.md §15)
+// rather than instantly spending the whole balance; the same "ถอนเงิน" screen
+// doubles as the countdown bail-out (forced to the full balance there,
+// prompt/README.md §13) — there's no separate action.
 export function KapookTracker() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { state, freeWithdrawalsRemaining } = useKapook();
+  const [products, setProducts] = useState<SalakProduct[] | null>(null);
+  const [termsSheetOpen, setTermsSheetOpen] = useState(false);
+
+  const celebrateState = location.state as KapookCelebrateState | null;
+  const [celebrate, setCelebrate] = useState(celebrateState?.celebrate ?? false);
+  const [goalReachedSheet, setGoalReachedSheet] = useState(celebrateState?.justReachedGoal ?? false);
+
+  useEffect(() => {
+    if (!celebrate) return;
+    const id = window.setTimeout(() => setCelebrate(false), CELEBRATE_DURATION_MS);
+    return () => window.clearTimeout(id);
+  }, [celebrate]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.listSalakProducts().then((list) => !cancelled && setProducts(list));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const productName = useMemo(
+    () => products?.find((p) => p.id === state.goal?.productId)?.name ?? "",
+    [products, state.goal?.productId],
+  );
 
   if (!state.account) return <Navigate to="/kapook/open" replace />;
   if (!state.goal) return <Navigate to="/kapook/goal/new" replace />;
@@ -28,6 +74,12 @@ export function KapookTracker() {
   const { goal } = state;
   const reached = isGoalTargetReached(goal);
   const totalCommitted = cumulativeCommitted(goal);
+  const remainingToTarget = Math.max(0, goal.targetAmount - totalCommitted);
+  const depositResultNote = reached
+    ? "ออมครบเป้าหมายแล้ว! กดซื้อสลากได้เลย"
+    : `เหลืออีก ฿${formatTHB(remainingToTarget)} ถึงเป้าหมาย ยังไม่ได้สลากจนกว่าจะออมครบนะ`;
+
+  const pigAnimation = celebrate ? "celebrate" : reached ? "party" : "bob";
 
   return (
     <AppShell showNav={false}>
@@ -35,16 +87,36 @@ export function KapookTracker() {
 
       <div className="flex flex-col px-4 pb-4">
         <div className="kapook-hero-card">
-          <span className="home-tip-card__sun" />
-          <TipCloud className="home-tip-card__cloud" />
-          <TipGround className="home-tip-card__ground" />
-          <PigMascot width={120} height={112} animation="none" className="kapook-hero-card__mascot" />
+          {reached ? (
+            <PartyBackdrop />
+          ) : (
+            <>
+              <span className="home-tip-card__sun" />
+              <TipCloud className="home-tip-card__cloud" />
+              <TipGround className="home-tip-card__ground" />
+            </>
+          )}
+          <PigMascot width={120} height={112} animation={pigAnimation} className="kapook-hero-card__mascot" />
+          {celebrate && (
+            <div className="kapook-celebrate-bubble">
+              <div>ออมสำเร็จวันนี้ ฿{formatTHB(celebrateState?.celebrateAmount ?? 0)} :)</div>
+              <div className="kapook-celebrate-bubble__note">{depositResultNote}</div>
+            </div>
+          )}
+          {celebrate && <CelebrateStickerIcon sticker={celebrateState?.celebrateSticker ?? "coin"} />}
         </div>
 
         <Card className="kapook-summary-card">
           <div className="kapook-summary-card__product-row">
-            <span className="kapook-summary-card__product">สลากดิจิทัล</span>
-            <span className="kapook-summary-card__info">i</span>
+            <span className="kapook-summary-card__product">{productName}</span>
+            <button
+              type="button"
+              className="kapook-summary-card__info"
+              onClick={() => setTermsSheetOpen(true)}
+              data-testid="kapook-terms-info"
+            >
+              i
+            </button>
           </div>
           <p className="kapook-summary-card__saved" data-testid="kapook-saved">
             ฿{formatTHB(totalCommitted)}
@@ -96,7 +168,13 @@ export function KapookTracker() {
         </div>
 
         <div className="kapook-actions">
-          <button type="button" className="kapook-actions__item" onClick={() => navigate("/kapook/deposit")} data-testid="kapook-deposit-action">
+          <button
+            type="button"
+            className="kapook-actions__item"
+            disabled={reached}
+            onClick={() => navigate("/kapook/deposit")}
+            data-testid="kapook-deposit-action"
+          >
             <span className="kapook-actions__icon">
               <SaveIcon className="h-5 w-5" />
             </span>
@@ -134,24 +212,70 @@ export function KapookTracker() {
           <p className="field-label">ประวัติการออม</p>
           <div className="flex flex-col gap-3 mt-2" data-testid="kapook-history">
             {state.transactions.length === 0 && <p className="empty-state">ยังไม่มีประวัติการออม</p>}
-            {state.transactions.map((txn) => (
-              <Card key={txn.id} data-testid="kapook-transaction-row" className="transaction-row">
-                <div>
-                  <p className="transaction-row__desc">{txn.description}</p>
-                  <p className="transaction-row__date">{formatDate(txn.createdAt)}</p>
-                </div>
-                <p
-                  className={`transaction-row__amount ${
-                    txn.type === "deposit" ? "transaction-row__amount--credit" : "transaction-row__amount--debit"
-                  }`}
-                >
-                  {txn.type === "deposit" ? "+" : "-"}฿{formatTHB(txn.amount)}
-                </p>
-              </Card>
-            ))}
+            {state.transactions.map((txn) => {
+              const isCredit = txn.type === "deposit";
+              const net = txn.type === "withdraw_with_fee" ? txn.amount - txn.feeAmount : txn.amount;
+              const label =
+                txn.type === "deposit" ? "ออมเงิน" : txn.type === "buy_salak" ? "ซื้อสลากแล้ว" : "ถอนเงินคืนบัญชีหลัก";
+              return (
+                <Card key={txn.id} data-testid="kapook-transaction-row" className="transaction-row">
+                  <div>
+                    <p className="transaction-row__desc">{label}</p>
+                    <p className="transaction-row__date">{formatDate(txn.createdAt)}</p>
+                    {txn.type === "withdraw_with_fee" && (
+                      <p className="transaction-row__fee-note">
+                        ถอนเต็ม ฿{formatTHB(txn.amount)} หักค่าธรรมเนียม ฿{formatTHB(txn.feeAmount)}
+                      </p>
+                    )}
+                  </div>
+                  <p className={`transaction-row__amount ${isCredit ? "transaction-row__amount--credit" : "transaction-row__amount--debit"}`}>
+                    {isCredit ? "+" : "-"}฿{formatTHB(net)}
+                  </p>
+                </Card>
+              );
+            })}
           </div>
         </section>
       </div>
+
+      <BottomSheet open={goalReachedSheet} onClose={() => setGoalReachedSheet(false)}>
+        <div className="sheet-panel flex flex-col items-center text-center">
+          <div className="sheet-panel__title">ออมครบเป้าหมายแล้ว! :)</div>
+          <p className="text-muted">
+            คุณออมครบ ฿{formatTHB(goal.targetAmount)} แล้ว ต้องการซื้อสลากดิจิทัลด้วยยอดที่ออมได้เลยตอนนี้หรือไม่
+          </p>
+          <p className="kapook-sheet-note mt-2">หากยังไม่ซื้อ ระบบจะซื้อสลากให้อัตโนมัติภายใน 24 ชั่วโมง</p>
+          <div className="mt-5 w-full flex gap-2">
+            <Button variant="secondary" onClick={() => setGoalReachedSheet(false)} data-testid="goal-reached-later">
+              ไว้ก่อน
+            </Button>
+            <Button onClick={() => navigate("/kapook/buy")} data-testid="goal-reached-buy-now">
+              ซื้อเลย
+            </Button>
+          </div>
+        </div>
+      </BottomSheet>
+
+      <BottomSheet open={termsSheetOpen} onClose={() => setTermsSheetOpen(false)}>
+        <div className="sheet-panel">
+          <div className="sheet-panel__title">ข้อกำหนดและเงื่อนไข การออมในกระปุกเงินฝาก</div>
+          <div className="flex flex-col gap-3">
+            <p className="text-muted">
+              เงินที่เก็บสะสมในกระปุกออมสิน (กระปุกเงินฝาก) จะยงคงได้รับอัตราดอกเบี้ยตามเงื่อนไขบัญชีเงินฝากออมทรัพย์ปกติ
+            </p>
+            <p className="text-muted">
+              ผู้ฝากสามารถถอนเงินออมได้โดยไม่มีค่าธรรมเนียม จำนวนไม่เกน 2 ครั้งต่อปี หากมีการถอนเกินกว่าจำนวนครั้งที่กำหนดในปีถัดไป
+              ธนาคารจะคิดค่าธรรมเนียมใออัตราร้อยละ 2 ของยอดเงินที่ถอน โดยจะหักออกจากยอดเงินดังกล่าวก่อนนำเข้าบัญชีจริง
+            </p>
+            <p className="text-muted">ในกรณีที่ผู้ฝากไม่สามารถออมเงินได้ครบตามจำนวนหรือเงื่อนไขที่กำหนดไว้ จะไม่มีการหักค่าธรรมเนียมหรือค่าปรับใดๆ ทั้งสิ้น</p>
+          </div>
+          <div className="mt-5">
+            <Button variant="secondary" onClick={() => setTermsSheetOpen(false)}>
+              ปิด
+            </Button>
+          </div>
+        </div>
+      </BottomSheet>
     </AppShell>
   );
 }

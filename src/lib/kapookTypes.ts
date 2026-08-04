@@ -52,7 +52,6 @@ export interface KapookTransaction {
   amount: number;
   feeAmount: number;
   createdAt: string;
-  description: string;
 }
 
 export interface KapookState {

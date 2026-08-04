@@ -31,7 +31,7 @@ interface PigMascotProps {
   className?: string;
   width?: number;
   height?: number;
-  animation?: "spin" | "bounce" | "none";
+  animation?: "spin" | "bounce" | "none" | "bob" | "party" | "celebrate";
   /** The salakInfo hero's pig has a medal ribbon on its chest and a smile —
    * the Home/tracker pig doesn't. Transcribed from the same extraction pass. */
   medal?: boolean;
@@ -41,9 +41,24 @@ const WRAPPER_ANIMATION: Record<NonNullable<PigMascotProps["animation"]>, string
   spin: "pigBannerSpin 2.6s ease-in-out infinite",
   bounce: "pigBannerBounce 2.8s ease-in-out infinite",
   none: undefined,
+  bob: "pigBob 2.6s ease-in-out infinite",
+  party: "pigParty 0.9s ease-in-out infinite",
+  celebrate: "pigCelebrate 0.6s ease-in-out 3",
+};
+
+// The tracker's hero pig wiggles its ears faster while the one-shot
+// "celebrate" bounce plays (prompt/prototype-reference.html's `earAnim`).
+const EAR_ANIMATION: Record<NonNullable<PigMascotProps["animation"]>, string> = {
+  spin: "pigEarWiggle 2.6s ease-in-out infinite",
+  bounce: "pigEarWiggle 2.6s ease-in-out infinite",
+  none: "pigEarWiggle 2.6s ease-in-out infinite",
+  bob: "pigEarWiggle 2.6s ease-in-out infinite",
+  party: "pigEarWiggle 2.6s ease-in-out infinite",
+  celebrate: "pigEarWiggle 0.5s ease-in-out infinite",
 };
 
 export function PigMascot({ className, width = 70, height = 66, animation = "spin", medal = false }: PigMascotProps) {
+  const earAnimation = EAR_ANIMATION[animation];
   return (
     <div className={className} style={{ animation: WRAPPER_ANIMATION[animation] }}>
       <svg viewBox="0 0 160 160" width={width} height={height} style={{ overflow: "visible" }}>
@@ -59,11 +74,11 @@ export function PigMascot({ className, width = 70, height = 66, animation = "spi
           strokeWidth={2}
           style={{ transformBox: "fill-box", transformOrigin: "20% 60%", animation: "pigTailWiggle 2.2s ease-in-out infinite" }}
         />
-        <g style={{ transformBox: "fill-box", transformOrigin: "80% 90%", animation: "pigEarWiggle 2.6s ease-in-out infinite" }}>
+        <g style={{ transformBox: "fill-box", transformOrigin: "80% 90%", animation: earAnimation }}>
           <ellipse cx="112" cy="40" rx="16" ry="18" fill="#FFB6C8" stroke="#fff" strokeWidth={3} />
           <ellipse cx="112" cy="43" rx="8" ry="9" fill="#F98CA5" />
         </g>
-        <g style={{ transformBox: "fill-box", transformOrigin: "20% 90%", animation: "pigEarWiggle 2.6s ease-in-out infinite" }}>
+        <g style={{ transformBox: "fill-box", transformOrigin: "20% 90%", animation: earAnimation }}>
           <ellipse cx="48" cy="40" rx="16" ry="18" fill="#FFB6C8" stroke="#fff" strokeWidth={3} />
           <ellipse cx="48" cy="43" rx="8" ry="9" fill="#F98CA5" />
         </g>
@@ -90,5 +105,72 @@ export function PigMascot({ className, width = 70, height = 66, animation = "spi
         )}
       </svg>
     </div>
+  );
+}
+
+// The tracker hero's "party mode" overlay once the goal is reached and the
+// auto-purchase countdown is running (prompt/prototype-reference.html's
+// `isPartyMode`): swaps the sky/grass scene for a starry disco backdrop.
+export function PartyBackdrop() {
+  return (
+    <div className="kapook-party-backdrop">
+      <span className="kapook-party-backdrop__star" style={{ top: 14, left: 26, width: 3, height: 3, animation: "starTwinkle 2.4s ease-in-out infinite" }} />
+      <span className="kapook-party-backdrop__star" style={{ top: 30, left: 70, width: 2, height: 2, animation: "starTwinkle 1.8s ease-in-out infinite 0.4s" }} />
+      <span className="kapook-party-backdrop__star" style={{ top: 20, right: 40, width: 3, height: 3, animation: "starTwinkle 2s ease-in-out infinite 0.8s" }} />
+      <span className="kapook-party-backdrop__star" style={{ top: 48, right: 90, width: 2, height: 2, animation: "starTwinkle 2.6s ease-in-out infinite 1.2s" }} />
+      <span className="kapook-party-backdrop__star" style={{ top: 60, left: 130, width: 2, height: 2, animation: "starTwinkle 2.2s ease-in-out infinite 0.6s" }} />
+      <div className="kapook-party-backdrop__glow" />
+      <div className="kapook-party-backdrop__ball-wrap">
+        <div className="kapook-party-backdrop__string" />
+        <div className="kapook-party-backdrop__ball" />
+      </div>
+    </div>
+  );
+}
+
+export type CelebrateSticker = "coin" | "star" | "ribbon" | "heart";
+
+export const CELEBRATE_STICKERS: CelebrateSticker[] = ["coin", "star", "ribbon", "heart"];
+
+// One of four small stickers that pops up next to the pig right after a
+// successful deposit, picked at random (prompt/prototype-reference.html's
+// `celebrateStickers`).
+export function CelebrateStickerIcon({ sticker }: { sticker: CelebrateSticker }) {
+  return (
+    <svg viewBox="0 0 40 40" width={40} height={40} className="kapook-celebrate-sticker">
+      {sticker === "coin" && (
+        <>
+          <circle cx="20" cy="20" r="16" fill="#FFD86B" stroke="#F4B23F" strokeWidth={2} />
+          <circle cx="20" cy="20" r="11" fill="none" stroke="#F4B23F" strokeWidth={1.6} />
+          <text x="20" y="25" fontSize={13} fontWeight={700} fill="#F4B23F" textAnchor="middle" fontFamily="sans-serif">
+            ฿
+          </text>
+        </>
+      )}
+      {sticker === "star" && (
+        <path
+          d="M20 4 L24.5 15.5 L37 16.5 L27.5 24.5 L30.5 37 L20 30 L9.5 37 L12.5 24.5 L3 16.5 L15.5 15.5 Z"
+          fill="#76CFF5"
+          stroke="#3FA8DE"
+          strokeWidth={1.6}
+        />
+      )}
+      {sticker === "ribbon" && (
+        <>
+          <circle cx="20" cy="15" r="10" fill="#FF9FB3" stroke="#D83152" strokeWidth={1.6} />
+          <circle cx="20" cy="15" r="5" fill="#fff" opacity={0.8} />
+          <path d="M14 22 L9 37 L18 32 Z" fill="#D83152" />
+          <path d="M26 22 L31 37 L22 32 Z" fill="#D83152" />
+        </>
+      )}
+      {sticker === "heart" && (
+        <path
+          d="M20 34 C6 24 4 15 11 10.5 C15 8 19 10 20 14 C21 10 25 8 29 10.5 C36 15 34 24 20 34 Z"
+          fill="#FF9FB3"
+          stroke="#D83152"
+          strokeWidth={1.6}
+        />
+      )}
+    </svg>
   );
 }

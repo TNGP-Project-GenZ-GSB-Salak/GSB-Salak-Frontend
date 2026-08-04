@@ -8,9 +8,10 @@ import { AppShell } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
 import { BottomSheet } from "../components/BottomSheet";
 import { Keypad } from "../components/Keypad";
-import { Button } from "../components/Button";
 import { SlideToConfirm } from "../components/SlideToConfirm";
+import { CELEBRATE_STICKERS } from "../components/PigMascot";
 import { useKapook } from "../context/KapookContext";
+import type { KapookCelebrateState } from "./KapookTracker";
 
 // Matches the prototype's goalDeposit screen (prompt/prototype-reference.html):
 // "จาก"/"ถึง" cards both use the same pink/red brand gradient (there is no
@@ -28,7 +29,6 @@ export function KapookDeposit() {
   const [keypadOpen, setKeypadOpen] = useState(false);
   const [amount, setAmount] = useState(0);
   const [keypadInput, setKeypadInput] = useState("");
-  const [goalReachedSheet, setGoalReachedSheet] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,11 +70,14 @@ export function KapookDeposit() {
   function handleConfirm() {
     if (!canSend) return;
     deposit(amount);
-    if (cumulativeCommitted(goal) + amount >= goal.targetAmount) {
-      setGoalReachedSheet(true);
-    } else {
-      navigate("/kapook", { replace: true });
-    }
+    const justReached = cumulativeCommitted(goal) + amount >= goal.targetAmount;
+    const celebrate: KapookCelebrateState = {
+      celebrate: true,
+      celebrateAmount: amount,
+      celebrateSticker: CELEBRATE_STICKERS[Math.floor(Math.random() * CELEBRATE_STICKERS.length)],
+      justReachedGoal: justReached,
+    };
+    navigate("/kapook", { replace: true, state: celebrate });
   }
 
   return (
@@ -130,21 +133,6 @@ export function KapookDeposit() {
           onCancel={() => setKeypadOpen(false)}
           onConfirm={keypadConfirm}
         />
-      </BottomSheet>
-
-      <BottomSheet open={goalReachedSheet} onClose={() => navigate("/kapook", { replace: true })} data-testid="goal-reached-sheet">
-        <div className="sheet-panel flex flex-col items-center text-center">
-          <div className="sheet-panel__title">ยินดีด้วย ยอดออมของคุณถึงขั้นต่ำสำหรับซื้อสลากแล้ว</div>
-          <p className="text-muted">แล้วต้องการซื้อสลากดิจิทัลด้วยยอดที่ออมได้เลยตอนนี้หรือไม่ หากยังไม่พร้อม ระบบจะซื้อสลากให้อัตโนมัติภายใน 24 ชั่วโมง</p>
-          <div className="mt-5 w-full flex flex-col gap-2">
-            <Button onClick={() => navigate("/kapook/buy", { replace: true })} data-testid="goal-reached-buy-now">
-              ซื้อสลากตอนนี้
-            </Button>
-            <Button variant="secondary" onClick={() => navigate("/kapook", { replace: true })} data-testid="goal-reached-later">
-              ไว้ก่อน
-            </Button>
-          </div>
-        </div>
       </BottomSheet>
     </AppShell>
   );
