@@ -17,7 +17,14 @@ interface KeypadProps {
   title: string;
   subText?: string;
   footerText?: string;
-  display: string;
+  display?: string;
+  /** False for the ธนาคาร-app-style callers (Kapook's deposit/withdraw/buy-
+   * from-piggy screens): the amount they're typing shows live on the actual
+   * page instead of a second readout duplicated inside this sheet, so the
+   * display/subText/footerText here are all suppressed. Defaults to true,
+   * preserving BuySalak.tsx's existing look (its own confirm-only-commit
+   * amount sheet) untouched. */
+  showDisplay?: boolean;
   onDigit: (digit: string) => void;
   onDelete: () => void;
   onCancel: () => void;
@@ -32,6 +39,7 @@ export function Keypad({
   subText,
   footerText,
   display,
+  showDisplay = true,
   onDigit,
   onDelete,
   onCancel,
@@ -48,11 +56,15 @@ export function Keypad({
           เสร็จสิ้น
         </button>
       </div>
-      {subText && <div className="keypad__subtext">{subText}</div>}
-      <div className="keypad__display" data-testid="keypad-display">
-        {display}
-      </div>
-      {footerText && <div className="keypad__footer">{footerText}</div>}
+      {showDisplay && (
+        <>
+          {subText && <div className="keypad__subtext">{subText}</div>}
+          <div className="keypad__display" data-testid="keypad-display">
+            {display}
+          </div>
+          {footerText && <div className="keypad__footer">{footerText}</div>}
+        </>
+      )}
       <div className="keypad__grid">
         {KEY_DEFS.map((def, index) => (
           <button

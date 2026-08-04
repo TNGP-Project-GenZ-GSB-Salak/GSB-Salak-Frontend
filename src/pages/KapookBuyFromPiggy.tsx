@@ -31,6 +31,7 @@ export function KapookBuyFromPiggy() {
   const [amount, setAmount] = useState(0);
   const [keypadOpen, setKeypadOpen] = useState(false);
   const [keypadInput, setKeypadInput] = useState("");
+  const [amountBeforeKeypad, setAmountBeforeKeypad] = useState(0);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,16 +61,27 @@ export function KapookBuyFromPiggy() {
   if (!state.goal && step !== "success") return <Navigate to="/kapook" replace />;
   const goal = state.goal;
   const canSend = !!goal && amount > 0 && amount <= goal.savedAmount;
+  const buyCap = Math.floor((goal?.savedAmount ?? 0) / 1000) * 1000;
 
   function openKeypad() {
     setKeypadInput(amount ? String(amount) : "");
+    setAmountBeforeKeypad(amount);
     setKeypadOpen(true);
   }
 
-  function keypadConfirm() {
-    const n = parseInt(keypadInput || "0", 10) || 0;
-    setAmount(Math.min(Math.floor(n / 1000) * 1000, Math.floor((goal?.savedAmount ?? 0) / 1000) * 1000));
-    setKeypadInput("");
+  // Every keystroke updates the amount on the page itself immediately —
+  // matches a real banking-app keypad, no separate readout duplicated
+  // inside the sheet. Rounded down to the nearest ฿1,000 live as you type,
+  // same rule as before, just applied continuously instead of only on
+  // confirm.
+  function applyKeypadValue(rawDigits: string) {
+    setKeypadInput(rawDigits);
+    const n = parseInt(rawDigits || "0", 10) || 0;
+    setAmount(Math.min(Math.floor(n / 1000) * 1000, buyCap));
+  }
+
+  function keypadCancel() {
+    setAmount(amountBeforeKeypad);
     setKeypadOpen(false);
   }
 
@@ -125,6 +137,9 @@ export function KapookBuyFromPiggy() {
               </span>
               <span className="transfer-amount-trigger__note">ยอดเงินจากการออมสะสม</span>
             </button>
+            <p className="text-muted text-center">
+              ยอดพร้อมฝากสลาก ฿{formatTHB(goal?.savedAmount ?? 0)} · ปัดเศษลงเป็นจำนวนที่หารด้วย 1,000 บาทลงตัว
+            </p>
 
             <div className="transfer-tags">
               <p className="field-label">แท็ก</p>
@@ -194,16 +209,14 @@ export function KapookBuyFromPiggy() {
         </div>
       )}
 
-      <BottomSheet open={keypadOpen} onClose={() => setKeypadOpen(false)}>
+      <BottomSheet open={keypadOpen} onClose={keypadCancel}>
         <Keypad
           title="กำหนดจำนวนเงินที่จะซื้อ"
-          subText={`ยอดพร้อมฝากสลาก ฿${formatTHB((goal?.savedAmount ?? 0))}`}
-          footerText="*ปัดเศษลงเป็นจำนวนที่หารด้วย 1,000 บาทลงตัว"
-          display={keypadInput ? Number(keypadInput).toLocaleString("en-US") : "0"}
-          onDigit={(d) => setKeypadInput((prev) => (prev + d).slice(0, 9))}
-          onDelete={() => setKeypadInput((prev) => prev.slice(0, -1))}
-          onCancel={() => setKeypadOpen(false)}
-          onConfirm={keypadConfirm}
+          showDisplay={false}
+          onDigit={(d) => applyKeypadValue((keypadInput + d).slice(0, 9))}
+          onDelete={() => applyKeypadValue(keypadInput.slice(0, -1))}
+          onCancel={keypadCancel}
+          onConfirm={() => setKeypadOpen(false)}
         />
       </BottomSheet>
     </AppShell>

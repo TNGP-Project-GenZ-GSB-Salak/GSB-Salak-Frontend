@@ -36,6 +36,7 @@ export function KapookWithdraw() {
   const [keypadOpen, setKeypadOpen] = useState(false);
   const [amount, setAmount] = useState(0);
   const [keypadInput, setKeypadInput] = useState("");
+  const [amountBeforeKeypad, setAmountBeforeKeypad] = useState(0);
   const [successAt, setSuccessAt] = useState<string | null>(null);
 
   useEffect(() => {
@@ -78,12 +79,21 @@ export function KapookWithdraw() {
   function openKeypad() {
     if (forcedFull) return;
     setKeypadInput(amount ? String(amount) : "");
+    setAmountBeforeKeypad(amount);
     setKeypadOpen(true);
   }
 
-  function keypadConfirm() {
-    setAmount(Math.min(parseInt(keypadInput || "0", 10) || 0, goal?.savedAmount ?? 0));
-    setKeypadInput("");
+  // Every keystroke updates the amount on the page itself immediately —
+  // matches a real banking-app keypad, no separate readout duplicated
+  // inside the sheet. Capped live as you type, same cap as before.
+  function applyKeypadValue(rawDigits: string) {
+    setKeypadInput(rawDigits);
+    const n = parseInt(rawDigits || "0", 10) || 0;
+    setAmount(Math.min(n, goal?.savedAmount ?? 0));
+  }
+
+  function keypadCancel() {
+    setAmount(amountBeforeKeypad);
     setKeypadOpen(false);
   }
 
@@ -204,15 +214,14 @@ export function KapookWithdraw() {
         </div>
       )}
 
-      <BottomSheet open={keypadOpen} onClose={() => setKeypadOpen(false)}>
+      <BottomSheet open={keypadOpen} onClose={keypadCancel}>
         <Keypad
           title="กำหนดจำนวนเงินที่จะถอน"
-          subText={`ถอนได้สูงสุด ฿${formatTHB(goal?.savedAmount ?? 0)}`}
-          display={keypadInput ? Number(keypadInput).toLocaleString("en-US") : "0"}
-          onDigit={(d) => setKeypadInput((prev) => (prev + d).slice(0, 9))}
-          onDelete={() => setKeypadInput((prev) => prev.slice(0, -1))}
-          onCancel={() => setKeypadOpen(false)}
-          onConfirm={keypadConfirm}
+          showDisplay={false}
+          onDigit={(d) => applyKeypadValue((keypadInput + d).slice(0, 9))}
+          onDelete={() => applyKeypadValue(keypadInput.slice(0, -1))}
+          onCancel={keypadCancel}
+          onConfirm={() => setKeypadOpen(false)}
         />
       </BottomSheet>
     </AppShell>
