@@ -118,7 +118,7 @@ export function SalakInfo() {
           </div>
 
           <div className="mt-1.5">
-            <Button onClick={() => navigate("/salak/buy")} data-testid="salak-info-buy">
+            <Button onClick={() => navigate("/salak/buy", { state: { from: "/salak/info" } })} data-testid="salak-info-buy">
               ซื้อสลากดิจิทัล
             </Button>
           </div>
