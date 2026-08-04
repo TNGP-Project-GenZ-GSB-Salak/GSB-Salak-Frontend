@@ -36,6 +36,10 @@ interface KapookContextValue {
    * balance, for the system-triggered auto-purchase path). */
   confirmGoalPurchase: (amount?: number) => Promise<BuySalakResponse>;
   dismissAutoPurchaseNotice: () => void;
+  /** Permanently stops the salak-suggestion sheet from ever firing again,
+   * for every future goal — set when the user checks "ไม่ต้องแสดงคำแนะนำนี้อีก"
+   * and dismisses the sheet. */
+  hideSalakSuggestionForever: () => void;
 }
 
 const KapookContext = createContext<KapookContextValue | undefined>(undefined);
@@ -231,6 +235,10 @@ export function KapookProvider({ children }: { children: ReactNode }) {
     persist({ ...state, autoPurchaseNotice: null });
   }, [state, persist]);
 
+  const hideSalakSuggestionForever = useCallback(() => {
+    persist({ ...state, hideSalakSuggestion: true });
+  }, [state, persist]);
+
   // Fires the goal-reached auto-purchase once the 24h window elapses, regardless of
   // which screen the user is on — docs/GAPS.md §2.6's "system buys automatically" is
   // meant to happen unattended, not only while KapookTracker happens to be mounted.
@@ -272,8 +280,18 @@ export function KapookProvider({ children }: { children: ReactNode }) {
       withdraw,
       confirmGoalPurchase,
       dismissAutoPurchaseNotice,
+      hideSalakSuggestionForever,
     }),
-    [state, openAccount, createGoal, deposit, withdraw, confirmGoalPurchase, dismissAutoPurchaseNotice],
+    [
+      state,
+      openAccount,
+      createGoal,
+      deposit,
+      withdraw,
+      confirmGoalPurchase,
+      dismissAutoPurchaseNotice,
+      hideSalakSuggestionForever,
+    ],
   );
 
   return <KapookContext.Provider value={value}>{children}</KapookContext.Provider>;

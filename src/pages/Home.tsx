@@ -33,12 +33,35 @@ function getInitials(name: string): string {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
+// designs/…V.5.html's `salakTips` list — the pig banner's headline
+// ("สลากดิจิทัลใกล้ออกผลแล้ว") is static, but the tag+body pair is re-rolled
+// every time the user lands on the home screen (`rerollHomeTip()`).
+const SALAK_TIPS = [
+  { tag: "เกร็ดความรู้", text: "ฝากขั้นต่ำ 1,000 บาท (10 หน่วย) ราคาต่อหน่วย 100 บาท (สลาก 1 ปี)" },
+  { tag: "เกร็ดความรู้", text: "สลาก 1 ปี ฝากครบ 1 ปี รับดอกเบี้ย 0.15 บาทต่อหน่วย (0.15% ต่อปี)" },
+  { tag: "ทริค", text: "ถอนก่อนครบ 6 เดือน ได้คืนหน่วยละ 98 บาทเท่านั้น ถือให้ครบ 6 เดือนก่อนถอนจะคุ้มกว่า" },
+  { tag: "เกร็ดความรู้", text: "สลาก 1 ปี มีสิทธิลุ้นรางวัลได้สูงสุด 12 ครั้งตลอดอายุการฝาก" },
+  { tag: "เกร็ดความรู้", text: "รางวัลที่ 1 ของสลาก 1 ปี มูลค่า 10 ล้านบาท ออกรางวัลทุกวันที่ 16 ของเดือน" },
+  { tag: "ทริค", text: "ฝาก 100,000 บาทขึ้นไปในสลาก 1 ปี จะได้การันตีรางวัลรายเดือนขั้นต่ำ 40 บาท" },
+  { tag: "ทริค", text: "ระบุจำนวนฝากได้เองตั้งแต่ 1,000 ถึง 10,000,000 บาท แต่ต้องเป็นจำนวนที่หารด้วย 1,000 ลงตัว" },
+  { tag: "เกร็ดความรู้", text: "ดอกเบี้ยและเงินรางวัลของสลากดิจิทัลทุกประเภทไม่ถูกหักภาษี" },
+  { tag: "เกร็ดความรู้", text: "ดอกเบี้ยและเงินรางวัลสลากดิจิทัล ไม่ถูกหักภาษี ณ ที่จ่าย และไม่ต้องนำไปยื่นภาษีเงินได้บุคคลธรรมดาด้วย" },
+  { tag: "เกร็ดความรู้", text: "สลากดิจิทัล 2 ปี หน่วยละ 100 บาท เท่ากับสลาก 1 ปี แต่ลุ้นรางวัลได้นานถึง 24 ครั้ง" },
+  { tag: "เกร็ดความรู้", text: "สลาก 2 ปี ฝากครบกำหนดรับดอกเบี้ย 0.50 บาทต่อหน่วย (0.25% ต่อปี)" },
+  { tag: "ทริค", text: "อยากลุ้นรางวัลใหญ่กว่าเดิม สลาก 2 ปี มีรางวัลที่ 1 สูงถึง 30 ล้านบาท มากกว่าสลาก 1 ปี" },
+  { tag: "เกร็ดความรู้", text: "สลาก 2 ปี ออกรางวัลทุกวันที่ 1 ของเดือน (ยกเว้น ม.ค. และ พ.ค. ออกวันที่ 2)" },
+  { tag: "ทริค", text: "ไม่ต้องรอมีเงินก้อน 1,000 บาท ใช้กระปุกหมูออมหยอดเก็บทีละนิดจนครบ แล้วค่อยซื้อสลากได้" },
+  { tag: "ทริค", text: "เริ่มต้นแค่ 1,000 บาทก็ซื้อสลากดิจิทัลได้แล้ว ไม่ต้องมีเงินก้อนใหญ่เหมือนที่คิด" },
+  { tag: "ทริค", text: "หยอดกระปุกหมูวันละนิด แทนควักเงินก้อนซื้อทีเดียว ครบ 1,000 บาทเมื่อไหร่ก็ซื้อสลากได้ทันที" },
+] as const;
+
 export function Home() {
   const { user } = useAuth();
   const { state: kapookState } = useKapook();
   const [savings, setSavings] = useState<Account | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [showBalance, setShowBalance] = useState(true);
+  const [homeTip] = useState(() => SALAK_TIPS[Math.floor(Math.random() * SALAK_TIPS.length)]);
   const availableBalance = savings ? computeAvailableBalance(Number(savings.balance), kapookState.goal) : 0;
 
   useEffect(() => {
@@ -116,13 +139,11 @@ export function Home() {
           <div className="home-tip-card__header">
             <span className="home-tip-card__title-row">
               <span className="home-tip-card__title">สลากดิจิทัลใกล้ออกผลแล้ว</span>
-              <span className="home-tip-card__tag">ทริค</span>
+              <span className="home-tip-card__tag">{homeTip.tag}</span>
             </span>
             <ChevronIcon className="home-tip-card__chevron h-4 w-4" />
           </div>
-          <p className="home-tip-card__body">
-            ไม่ต้องรอมีเงินก้อน 1,000 บาท ใช้กระปุกหมูออมหยอดเก็บทีละนิดจนครบ แล้วค่อยซื้อสลากได้
-          </p>
+          <p className="home-tip-card__body">{homeTip.text}</p>
           <PigMascot className="home-tip-card__mascot" />
         </Link>
       </div>

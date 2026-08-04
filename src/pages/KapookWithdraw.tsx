@@ -38,6 +38,7 @@ export function KapookWithdraw() {
   const [keypadInput, setKeypadInput] = useState("");
   const [amountBeforeKeypad, setAmountBeforeKeypad] = useState(0);
   const [successAt, setSuccessAt] = useState<string | null>(null);
+  const [successFee, setSuccessFee] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,6 +76,13 @@ export function KapookWithdraw() {
   const goal = state.goal;
   const canWithdraw = !!goal && amount > 0 && amount <= goal.savedAmount;
   const net = amount - fee;
+  // A withdrawal that empties the piggy closes the goal (state.goal -> null)
+  // as soon as it's confirmed — after that, `withdrawFee`/`fee` above would
+  // recompute against a *goalless* state and (wrongly) come back as 0, since
+  // freeWithdrawalsRemaining() treats "no goal" as "full quota, never used".
+  // The success screen must show the fee that was actually charged, frozen
+  // at confirm time, not whatever `fee` recomputes to afterwards.
+  const successNet = amount - successFee;
 
   function openKeypad() {
     if (forcedFull) return;
@@ -98,6 +106,7 @@ export function KapookWithdraw() {
   }
 
   function handleFinalConfirm() {
+    setSuccessFee(fee);
     withdraw(amount);
     setSuccessAt(new Date().toISOString());
     setConfirmOpen(false);
@@ -173,10 +182,10 @@ export function KapookWithdraw() {
             </div>
           </div>
           <p className="text-muted">ถอนเงินสำเร็จ</p>
-          <p className="receipt-summary__amount mt-2">฿{formatTHB(net)}</p>
-          {fee > 0 && (
+          <p className="receipt-summary__amount mt-2">฿{formatTHB(successNet)}</p>
+          {successFee > 0 && (
             <p className="kapook-confirm-fee-note">
-              หักค่าธรรมเนียม ฿{formatTHB(fee)} จากยอดถอน ฿{formatTHB(amount)}
+              หักค่าธรรมเนียม ฿{formatTHB(successFee)} จากยอดถอน ฿{formatTHB(amount)}
             </p>
           )}
           <p className="text-muted">{successAt ? formatDate(successAt) : ""}</p>

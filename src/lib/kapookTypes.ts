@@ -68,8 +68,13 @@ export interface KapookState {
   // dismissible banner on the Salak overview (prompt/README.md screen 2).
   // Not set by a manual purchase.
   autoPurchaseNotice: number | null;
+  // Set when the user checks "ไม่ต้องแสดงคำแนะนำนี้อีก" on the salak-suggestion
+  // sheet and dismisses it — unlike KapookGoal.salakSuggestionSeen (which is
+  // per-goal and only stops the sheet firing twice for the *same* goal),
+  // this is permanent across every future goal the user ever opens.
+  hideSalakSuggestion: boolean;
 }
 
 export function emptyKapookState(): KapookState {
-  return { account: null, goal: null, transactions: [], autoPurchaseNotice: null };
+  return { account: null, goal: null, transactions: [], autoPurchaseNotice: null, hideSalakSuggestion: false };
 }

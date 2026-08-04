@@ -47,7 +47,7 @@ const CELEBRATE_DURATION_MS = 3200;
 export function KapookTracker() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { state, freeWithdrawalsRemaining } = useKapook();
+  const { state, freeWithdrawalsRemaining, hideSalakSuggestionForever } = useKapook();
   const [products, setProducts] = useState<SalakProduct[] | null>(null);
   const [termsSheetOpen, setTermsSheetOpen] = useState(false);
 
@@ -58,11 +58,13 @@ export function KapookTracker() {
   const [hideSuggestionChecked, setHideSuggestionChecked] = useState(false);
 
   function closeSuggestionSheet() {
+    if (hideSuggestionChecked) hideSalakSuggestionForever();
     setSuggestionSheet(false);
     if (celebrateState?.pendingGoalReachedAfterSuggestion) setGoalReachedSheet(true);
   }
 
   function buySalakFromSuggestion() {
+    if (hideSuggestionChecked) hideSalakSuggestionForever();
     setSuggestionSheet(false);
     navigate("/kapook/buy");
   }
@@ -90,6 +92,10 @@ export function KapookTracker() {
   if (!state.goal) return <Navigate to="/kapook/goal/new" replace />;
 
   const { goal } = state;
+  // prompt/README.md: opening a new piggy resets its history (and free-
+  // withdrawal quota) — a closed goal's old transactions must never show up
+  // under the new one, even though they still live in the same flat array.
+  const goalTransactions = state.transactions.filter((t) => t.goalId === goal.id);
   const reached = isGoalTargetReached(goal);
   const totalCommitted = cumulativeCommitted(goal);
   const remainingToTarget = Math.max(0, goal.targetAmount - totalCommitted);
@@ -229,8 +235,8 @@ export function KapookTracker() {
         <section className="mt-2">
           <p className="field-label">ประวัติการออม</p>
           <div className="flex flex-col gap-3 mt-2" data-testid="kapook-history">
-            {state.transactions.length === 0 && <p className="empty-state">ยังไม่มีประวัติการออม</p>}
-            {state.transactions.map((txn) => {
+            {goalTransactions.length === 0 && <p className="empty-state">ยังไม่มีประวัติการออม</p>}
+            {goalTransactions.map((txn) => {
               const isCredit = txn.type === "deposit";
               const net = txn.type === "withdraw_with_fee" ? txn.amount - txn.feeAmount : txn.amount;
               const label =
@@ -303,7 +309,7 @@ export function KapookTracker() {
           </div>
           <button
             type="button"
-            className="kapook-suggestion-checkbox mt-3"
+            className="kapook-suggestion-checkbox"
             onClick={() => setHideSuggestionChecked((v) => !v)}
             data-testid="salak-suggestion-hide-checkbox"
           >

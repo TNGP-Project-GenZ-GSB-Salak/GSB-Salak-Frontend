@@ -87,7 +87,7 @@ export function KapookDeposit() {
     const savedBefore = goal.savedAmount;
     const savedAfter = savedBefore + amount;
     const justReached = cumulativeCommitted(goal) + amount >= goal.targetAmount;
-    const crossedMinimum = !goal.salakSuggestionSeen && savedBefore < 1000 && savedAfter >= 1000;
+    const crossedMinimum = !state.hideSalakSuggestion && !goal.salakSuggestionSeen && savedBefore < 1000 && savedAfter >= 1000;
     deposit(amount);
     const celebrate: KapookCelebrateState = {
       celebrate: true,
