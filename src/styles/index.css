@@ -349,6 +349,37 @@ body {
   box-shadow: 0 8px 24px rgba(44, 168, 124, 0.35);
 }
 
+/* -- Withdraw success: its own bigger hero art with a decorative circle
+   cluster behind the checkmark — distinct from the plain shared
+   .receipt-summary__check the buy/salak-purchase success screens use. -- */
+
+.withdraw-success-hero {
+  position: relative;
+  width: 100%;
+  height: 210px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.withdraw-success-hero__circle {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.withdraw-success-hero__check {
+  position: relative;
+  height: 112px;
+  width: 112px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  background-image: linear-gradient(150deg, #22c86e, #0fa857);
+  box-shadow: 0 10px 26px rgba(15, 168, 87, 0.32);
+}
+
 .receipt-summary__amount {
   font-size: 38px;
   font-weight: 700;
@@ -1882,6 +1913,14 @@ body {
   border-radius: 50%;
   color: #fff;
   background-image: var(--gradient-button);
+}
+
+.party-row__avatar-img {
+  height: 40px;
+  width: 40px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .party-row__label {

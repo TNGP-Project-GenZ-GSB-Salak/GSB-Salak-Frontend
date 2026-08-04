@@ -163,8 +163,14 @@ export function KapookWithdraw() {
 
       {step === "success" && (
         <div className="flex flex-col items-center gap-1 px-5 pb-6 pt-6">
-          <div className="receipt-summary__check">
-            <CheckIcon />
+          <div className="withdraw-success-hero">
+            <span className="withdraw-success-hero__circle" style={{ width: 180, height: 180, background: "var(--mymo-pastel-pink)", opacity: 0.6 }} />
+            <span className="withdraw-success-hero__circle" style={{ top: 8, right: 64, width: 52, height: 52, background: "var(--mymo-pink-landing)" }} />
+            <span className="withdraw-success-hero__circle" style={{ bottom: 44, left: 60, width: 46, height: 46, background: "var(--mymo-pink-landing)", opacity: 0.9 }} />
+            <span className="withdraw-success-hero__circle" style={{ bottom: 58, right: 52, width: 20, height: 20, background: "var(--mymo-pink)" }} />
+            <div className="withdraw-success-hero__check">
+              <CheckIcon />
+            </div>
           </div>
           <p className="text-muted">ถอนเงินสำเร็จ</p>
           <p className="receipt-summary__amount mt-2">฿{formatTHB(net)}</p>
@@ -230,7 +236,7 @@ export function KapookWithdraw() {
 
 function CheckIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} className="h-[38px] w-[38px]">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} className="h-[54px] w-[54px]">
       <path d="m5 13 4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
