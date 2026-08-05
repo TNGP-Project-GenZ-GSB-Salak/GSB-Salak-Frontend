@@ -148,6 +148,23 @@ export function getActiveKapookGoal(accountId: string): Promise<KapookGoalRespon
   return apiFetch<KapookGoalResponse | null>(`/kapook/goals/active?account_id=${accountId}`);
 }
 
+// amount crosses as a decimal string, matching createKapookGoal's own
+// goal_amount convention - never a number. Response is the same goalResponse
+// shape as createKapookGoal/getActiveKapookGoal (internal/kapook/http/dto.go's
+// toGoalResponse) - the read model's derived fields (available_balance,
+// target_reached, buy_eligible, ...) reflect this deposit immediately, so
+// callers should use them directly rather than recomputing locally.
+export function depositToKapookGoal(input: {
+  kapook_account_id: string;
+  savings_account_id: string;
+  amount: string;
+}): Promise<KapookGoalResponse> {
+  return apiFetch<KapookGoalResponse>("/kapook/goals/deposit", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
 export function listTransactions(
   accountId: string,
   options: { limit?: number; offset?: number } = {},
