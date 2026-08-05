@@ -99,6 +99,11 @@ export interface KapookGoalResponse {
   purchased_units: number;
   purchased_count: number;
   buy_eligible: boolean;
+  // Absent unless the worker has failed to auto-purchase this goal at
+  // least once since its last success - see KapookTracker's "delayed"
+  // message, shown once auto_purchase_attempts crosses a threshold.
+  auto_purchase_attempts?: number;
+  auto_purchase_last_error?: string;
 }
 
 // Hand-mirrors internal/kapook/http/dto.go's withdrawalStatusResponse - a

@@ -39,6 +39,14 @@ const CELEBRATE_DURATION_MS = 3200;
 // auto-purchase notice once on mount instead of polling at all.
 const GOAL_POLL_INTERVAL_MS = 5000;
 
+// Below this many consecutive failed worker attempts, "processing" still
+// reads as normal - a goal can legitimately sit at attempts 0-2 for a tick
+// or two even when everything is healthy. At or above it, silently
+// repeating the same spinner forever would look identical to a healthy
+// in-progress purchase, so the message switches to say something is
+// actually wrong - polling itself (still 5s, see below) doesn't change.
+const AUTO_PURCHASE_DELAYED_THRESHOLD = 3;
+
 // Matches the prototype's goalTracker screen (prompt/prototype-reference.html):
 // a sky/pig hero (swapping to a starry "party mode" backdrop once the goal is
 // reached), a summary card (product + cumulative-committed/target + progress
@@ -290,6 +298,12 @@ export function KapookTracker() {
                   <br />
                   เนื่องจากเป็นวันออกรางวัล จะดำเนินการซื้อให้อัตโนมัติใหม่ในวันที่{" "}
                   {formatDate(goal.auto_purchase_deferred_until)}
+                </p>
+              ) : processing && (goal.auto_purchase_attempts ?? 0) >= AUTO_PURCHASE_DELAYED_THRESHOLD ? (
+                <p className="kapook-countdown-box__value" data-testid="auto-purchase-delayed">
+                  การซื้อสลากอัตโนมัติล่าช้ากว่าปกติ ระบบจะพยายามซื้อให้อีกครั้ง
+                  หากยังไม่สำเร็จ กรุณากดปุ่ม "ซื้อสลาก" ด้านล่างเพื่อดำเนินการเอง
+                  หรือติดต่อเจ้าหน้าที่
                 </p>
               ) : processing ? (
                 <p className="kapook-countdown-box__value" data-testid="auto-purchase-processing">
