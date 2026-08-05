@@ -5,7 +5,6 @@ import type { Account } from "../lib/types";
 import { formatTHB, maskAccountNumber } from "../lib/format";
 import { findPrimaryAccount } from "../lib/accounts";
 import { useAuth } from "../context/AuthContext";
-import { useKapook } from "../context/KapookContext";
 import { AppShell } from "../components/AppShell";
 import { PigMascot, TipCloud, TipGround } from "../components/PigMascot";
 
@@ -57,7 +56,6 @@ const SALAK_TIPS = [
 
 export function Home() {
   const { user } = useAuth();
-  const { state: kapookState } = useKapook();
   const [savings, setSavings] = useState<Account | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [showBalance, setShowBalance] = useState(true);
@@ -140,12 +138,7 @@ export function Home() {
           )}
         </div>
 
-        <Link
-          to={kapookState.termsAccepted ? "/kapook" : "/salak/info"}
-          state={kapookState.termsAccepted ? undefined : { from: "/" }}
-          data-testid="salak-promo-banner"
-          className="home-tip-card"
-        >
+        <Link to="/salak/info" state={{ from: "/" }} data-testid="salak-promo-banner" className="home-tip-card">
           <span className="home-tip-card__sun" />
           <TipCloud className="home-tip-card__cloud" />
           <TipGround className="home-tip-card__ground" />
