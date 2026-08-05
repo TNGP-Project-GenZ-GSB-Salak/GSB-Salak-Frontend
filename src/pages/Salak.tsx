@@ -1,4 +1,4 @@
-import { useEffect, useState, type SVGProps } from "react";
+import { useCallback, useEffect, useState, type SVGProps } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
 import type { Account, Holding, KapookGoalResponse, SalakProduct } from "../lib/types";
@@ -27,14 +27,6 @@ export function Salak() {
   const [holdings, setHoldings] = useState<Holding[] | null>(null);
   const [products, setProducts] = useState<SalakProduct[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // The real goal (GET /kapook/goals/active), fetched once on mount - this
-  // screen checks state once per visit rather than polling; only the
-  // Tracker owns a live-polling countdown. Ticking here is still anchored
-  // on the server's own countdown_remaining_seconds, just never
-  // re-anchored again after this one fetch, so it can drift if the
-  // customer lingers here - accepted, since re-polling from a second
-  // screen at the same time as the Tracker was ruled out as unnecessary
-  // for this feature's demo needs.
   const [goal, setGoal] = useState<KapookGoalResponse | null>(null);
 
   useEffect(() => {
@@ -65,21 +57,32 @@ export function Salak() {
     };
   }, []);
 
-  useEffect(() => {
+  // Mirrors KapookTracker.tsx's loadGoal - the single source of truth for the
+  // goal, reused on mount, on the Countdown's own onExpire, and by the poll
+  // below, so the goal card (and the auto-purchase-notice banner it feeds via
+  // reportGoalObservation) updates in real time instead of only on remount.
+  const loadGoal = useCallback(() => {
     if (!kapookState.account) return;
-    let cancelled = false;
     api
       .getActiveKapookGoal(kapookState.account.id)
       .then((g) => {
-        if (cancelled) return;
         setGoal(g);
         reportGoalObservation(g);
       })
-      .catch((err) => !cancelled && setError(err instanceof Error ? err.message : "โหลดข้อมูลไม่สำเร็จ"));
-    return () => {
-      cancelled = true;
-    };
+      .catch((err) => setError(err instanceof Error ? err.message : "โหลดข้อมูลไม่สำเร็จ"));
   }, [kapookState.account, reportGoalObservation]);
+
+  useEffect(() => {
+    loadGoal();
+  }, [loadGoal]);
+
+  // Mirrors KapookTracker.tsx's GOAL_POLL_INTERVAL_MS - only while a
+  // countdown is actually live, never otherwise.
+  useEffect(() => {
+    if (!goal?.target_reached) return;
+    const id = window.setInterval(loadGoal, 5000);
+    return () => window.clearInterval(id);
+  }, [goal?.target_reached, loadGoal]);
 
   const goalProduct = goal ? products?.find((p) => p.id === goal.product_id) : null;
   const goalSaved = goal ? Number(goal.saving_amount) : 0;
@@ -126,7 +129,12 @@ export function Salak() {
 
       {goal && (
         <div className="px-4 pt-3">
-          <button type="button" onClick={() => navigate("/kapook")} className="salak-goal-card" data-testid="salak-goal-card">
+          <button
+            type="button"
+            onClick={() => navigate("/kapook", { state: { from: "/salak" } })}
+            className="salak-goal-card"
+            data-testid="salak-goal-card"
+          >
             <span className="salak-goal-card__icon">
               <BuyIcon className="h-[22px] w-[22px]" />
             </span>
@@ -143,7 +151,8 @@ export function Salak() {
               </p>
               {goal.target_reached && goal.countdown_remaining_seconds !== undefined && (
                 <p className="salak-goal-card__countdown">
-                  ระบบจะซื้อสลากให้อัตโนมัติใน <Countdown remainingSeconds={goal.countdown_remaining_seconds} />
+                  ระบบจะซื้อสลากให้อัตโนมัติใน{" "}
+                  <Countdown remainingSeconds={goal.countdown_remaining_seconds} onExpire={loadGoal} />
                 </p>
               )}
             </div>

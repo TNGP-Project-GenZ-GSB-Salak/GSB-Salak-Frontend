@@ -67,6 +67,11 @@ const AUTO_PURCHASE_DELAYED_THRESHOLD = 3;
 export function KapookTracker() {
   const navigate = useNavigate();
   const location = useLocation();
+  // Reused from more than one entry point (Salak.tsx's goal card, among
+  // others) - the close (X) button should return to wherever it came from.
+  // Defaults to "/salak" so entry points that pass no state land somewhere
+  // sensible, matching SalakBuyList.tsx/SalakInfo.tsx's convention.
+  const backTo = (location.state as { from?: string } | null)?.from ?? "/salak";
   const { state, hideSalakSuggestionForever, reportGoalObservation } = useKapook();
   const [products, setProducts] = useState<SalakProduct[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -209,7 +214,7 @@ export function KapookTracker() {
   if (goal === null) {
     return (
       <AppShell showNav={false}>
-        <PageHeader title="ออมก่อนซื้อสลาก" variant="close" onAction={() => navigate("/")} />
+        <PageHeader title="ออมก่อนซื้อสลาก" variant="close" onAction={() => navigate(backTo)} />
         <div className="flex flex-1 flex-col items-center px-6 pb-6 pt-2">
           {loadError && <p className="error-box">{loadError}</p>}
           <div className="kapook-hero-card">
@@ -248,7 +253,7 @@ export function KapookTracker() {
 
   return (
     <AppShell showNav={false}>
-      <PageHeader title="ออมก่อนซื้อสลาก" variant="close" onAction={() => navigate("/")} />
+      <PageHeader title="ออมก่อนซื้อสลาก" variant="close" onAction={() => navigate(backTo)} />
 
       <div className="flex flex-col px-4 pb-4">
         {loadError && <p className="error-box">{loadError}</p>}
