@@ -11,6 +11,7 @@ import { useKapook } from "../context/KapookContext";
 import { messageForError } from "../lib/kapookErrorMessages";
 
 const PRESET_AMOUNTS = [1000, 5000, 10000, 50000, 100000, 500000];
+const GOAL_AMOUNT_MAX = 10_000_000;
 
 // Matches the prototype's goalSetup screen exactly (extracted by driving
 // designs/…V.4.html): a subtitle naming the product + flow, a big heading,
@@ -46,6 +47,13 @@ export function KapookGoalSetup() {
     return products.find((p) => p.id === requestedProductId) ?? products[0];
   }, [products, requestedProductId]);
 
+  const goalAmountError = useMemo(() => {
+    if (amount === null || amount <= 0) return null;
+    if (amount % 1000 !== 0) return "กรุณาระบุจำนวนเป็นจำนวนเต็มพันบาท (เช่น 1,000, 2,000)";
+    if (amount > GOAL_AMOUNT_MAX) return `ระบุจำนวนได้ไม่เกิน ฿${formatTHB(GOAL_AMOUNT_MAX)}`;
+    return null;
+  }, [amount]);
+
   // termsAccepted is fetched fresh from the server (GET /kapook/terms) - null
   // only while that request is still in flight, so it's checked separately
   // from the false case rather than folded into one falsy check.
@@ -55,7 +63,7 @@ export function KapookGoalSetup() {
   }
 
   async function handleConfirm() {
-    if (!amount || !product) return;
+    if (!amount || !product || goalAmountError) return;
     setError(null);
     try {
       await createGoal(amount, product.id);
@@ -65,12 +73,13 @@ export function KapookGoalSetup() {
     }
   }
 
-  const confirmDisabled = !amount || !product;
+  const confirmDisabled = !amount || !product || !!goalAmountError;
 
   // Real device keyboard instead of a custom on-screen digit grid — avoids
   // the grid's small tap targets mis-registering when the page scrolls
-  // while it's open. No live rounding-to-1,000 enforcement here, matching
-  // the previous keypad flow — the subText below is advisory copy only.
+  // while it's open. No live capping here — invalid amounts (not a multiple
+  // of ฿1,000, or over the ฿10,000,000 cap) are surfaced via `goalAmountError`
+  // instead, which also blocks the confirm action.
   function handleCustomAmountChange(e: ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/\D/g, "").slice(0, 9);
     setAmount(digits ? parseInt(digits, 10) : null);
@@ -128,6 +137,11 @@ export function KapookGoalSetup() {
           )}
         </div>
         <p className="text-muted mt-2">ต้องเป็นจำนวนที่หารด้วย 1,000 บาทลงตัว</p>
+        {goalAmountError && (
+          <p className="amount-error text-center" data-testid="goal-amount-error">
+            {goalAmountError}
+          </p>
+        )}
 
         <div className="mt-4">
           {error && (
