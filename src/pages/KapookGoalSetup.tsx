@@ -120,7 +120,7 @@ export function KapookGoalSetup() {
               autoFocus
               className="goal-list__item goal-list__item--selected"
               placeholder="กำหนดเอง"
-              value={amount !== null && !PRESET_AMOUNTS.includes(amount) ? String(amount) : ""}
+              value={amount !== null ? String(amount) : ""}
               onChange={handleCustomAmountChange}
               onBlur={() => setEditingCustom(false)}
               data-testid="goal-amount-custom-input"
