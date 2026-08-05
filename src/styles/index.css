@@ -1529,7 +1529,7 @@ body {
 }
 
 /* ============================================================
-   Bottom sheets (mode-choose / product detail / amount / keypad)
+   Bottom sheets (mode-choose / product detail / amount preset)
    ============================================================ */
 
 .bottom-sheet-backdrop {
@@ -1625,96 +1625,6 @@ body {
   font-size: 14px;
   line-height: 1.6;
   color: var(--text-secondary);
-}
-
-/* ---------- Keypad ---------- */
-
-.keypad__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 16px 8px;
-}
-
-.keypad__header-action {
-  border: none;
-  background: none;
-  font-family: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
-  cursor: pointer;
-}
-
-.keypad__header-action--strong {
-  color: var(--color-brand);
-  font-weight: 700;
-}
-
-.keypad__title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.keypad__subtext {
-  padding: 0 24px 14px;
-  text-align: center;
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
-
-.keypad__display {
-  border-bottom: 1px solid var(--border-hairline);
-  padding: 0 24px 12px;
-  text-align: right;
-  font-size: 30px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
-}
-
-.keypad__footer {
-  padding: 10px 24px 16px;
-  font-size: 11px;
-  color: var(--text-tertiary);
-}
-
-.keypad__grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  border-top: 1px solid var(--border-hairline);
-  background-color: var(--surface-app);
-}
-
-.keypad__key {
-  display: flex;
-  height: 60px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-bottom: 1px solid var(--border-hairline);
-  background: none;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.keypad__key:disabled {
-  cursor: default;
-}
-
-.keypad__key-label {
-  font-size: 22px;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.keypad__key-sub {
-  margin-top: 2px;
-  font-size: 9px;
-  letter-spacing: 0.1em;
-  color: var(--text-tertiary);
 }
 
 /* ---------- Slide to confirm ---------- */
@@ -1863,14 +1773,27 @@ body {
 
 .transfer-amount-trigger__value {
   display: block;
+  width: 100%;
   margin-top: 6px;
+  border: none;
+  background: none;
+  outline: none;
+  padding: 0;
+  font-family: inherit;
   font-size: 38px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
+  text-align: center;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .transfer-amount-trigger__value--muted {
+  color: var(--mymo-mid-gray);
+}
+
+.transfer-amount-trigger__value::placeholder {
   color: var(--mymo-mid-gray);
 }
 
@@ -2316,11 +2239,17 @@ body {
   width: 100%;
   border: none;
   background: none;
+  outline: none;
   padding: 0.9375rem 1.125rem;
   text-align: left;
+  font-family: inherit;
   font-size: 15px;
   color: var(--text-primary);
   border-bottom: 1px solid var(--border-hairline);
+}
+
+.goal-list__item::placeholder {
+  color: var(--mymo-mid-gray);
 }
 
 .goal-list__item:last-child {
@@ -2917,32 +2846,105 @@ body {
   flex: 0 0 auto;
 }
 
-.salak-info-table {
-  border-radius: 16px;
+.salak-info-row-card__body {
+  padding: 0 14px 14px;
+}
+
+.salak-info-subtable {
+  border-radius: 12px;
   background-color: #fff;
-  box-shadow: var(--elevation-card);
   overflow: hidden;
 }
 
-.salak-info-table__row {
+.salak-info-subtable__row {
   display: grid;
   grid-template-columns: 1.5fr 1fr 1fr;
   border-top: 1px solid var(--border-hairline);
 }
 
-.salak-info-table__row--head {
+.salak-info-subtable__row--head {
   border-top: none;
   background-color: var(--mymo-light-gray-bg);
 }
 
-.salak-info-table__label {
+.salak-info-subtable__label {
   padding: 9px 10px;
   font-size: 11.5px;
   color: var(--text-secondary);
   line-height: 1.3;
 }
 
+.salak-info-subtable__row--head .salak-info-subtable__label {
+  padding: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+}
+
+.salak-info-subtable__value {
+  padding: 9px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.salak-info-subtable__row--head .salak-info-subtable__value {
+  padding: 10px 6px;
+  font-size: 12px;
+}
+
+.salak-info-subtable__footnote {
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  margin-top: 8px;
+  line-height: 1.4;
+}
+
+/* `.salak-info-table` is a real <table> (not a CSS-grid <div> layout) so it
+   can size an arbitrary number of columns natively and support a sticky
+   first column with native touch-scroll once a future 3rd product column
+   (e.g. "5 ปี") makes it overflow — CSS Grid's `fr` units are fluid and can
+   never overflow by construction, which is exactly why they can't drive
+   that behavior. Radius/shadow/clipping live on the wrapper, not the table
+   itself, since Safari can fail to clip a border-collapsed table's own
+   border-radius. */
+.salak-info-table-scroll {
+  border-radius: 16px;
+  background-color: #fff;
+  box-shadow: var(--elevation-card);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.salak-info-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.salak-info-table tbody .salak-info-table__label,
+.salak-info-table tbody .salak-info-table__value {
+  border-top: 1px solid var(--border-hairline);
+}
+
+.salak-info-table__label {
+  /* Sticky + an explicit background (not inherited) is load-bearing here —
+     without it, scrolled value-column content bleeds behind the pinned
+     label column during horizontal scroll. */
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background-color: #fff;
+  min-width: 148px;
+  padding: 9px 10px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.3;
+  text-align: left;
+}
+
 .salak-info-table__row--head .salak-info-table__label {
+  background-color: var(--mymo-light-gray-bg);
   padding: 10px;
   font-size: 11px;
   font-weight: 700;
@@ -2950,6 +2952,8 @@ body {
 }
 
 .salak-info-table__value {
+  min-width: 64px;
+  white-space: nowrap;
   padding: 9px 6px;
   font-size: 12px;
   font-weight: 600;

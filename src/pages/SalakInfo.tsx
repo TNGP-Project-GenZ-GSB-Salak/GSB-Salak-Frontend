@@ -15,25 +15,44 @@ const COINS = [
   { size: 20, tx: 0, rot: 0, delay: 170 },
 ] as const;
 
+// TABLE_COLUMNS/`values` (rather than fixed `y1`/`y2` fields) let a future
+// product column (e.g. "5 ปี") drop in as one more header string + one more
+// value per row, with no JSX/CSS changes — see .salak-info-table-scroll below.
+const TABLE_COLUMNS = ["1 ปี", "2 ปี"] as const;
+
 const TABLE_ROWS = [
-  { label: "งวดปัจจุบัน", y1: "635", y2: "274" },
-  { label: "รางวัลที่ 1", y1: "10 ล้าน", y2: "30 ล้าน" },
-  { label: "รางวัลที่ 2", y1: "1 ล้าน", y2: "1 ล้าน" },
-  { label: "รางวัลที่ 3 (x5)", y1: "10,000", y2: "10,000" },
-  { label: "รางวัลที่ 4 (x10)", y1: "3,000", y2: "3,000" },
-  { label: "รางวัลที่ 5 (x15)", y1: "1,000", y2: "1,000" },
-  { label: "เลขท้าย 4 ตัว", y1: "150", y2: "500" },
-  { label: "เลขท้าย 3 ตัว", y1: "40", y2: "–" },
-  { label: "วันออกรางวัล", y1: "16 ทุกเดือน", y2: "1 ทุกเดือน" },
-  { label: "สิทธิถูกรางวัล", y1: "12 ครั้ง", y2: "24 ครั้ง" },
-  { label: "ถอนก่อนครบ 6 ด.", y1: "98.00", y2: "98.00" },
-  { label: "ถือครบ 6 ด. (ยังไม่ครบอายุ)", y1: "100.00", y2: "100.00" },
-  { label: "ครบกำหนดอายุ", y1: "100.15", y2: "100.50" },
+  { label: "งวดปัจจุบัน", values: ["635", "274"] },
+  { label: "รางวัลที่ 1", values: ["10 ล้าน", "30 ล้าน"] },
+  { label: "รางวัลที่ 2", values: ["1 ล้าน", "1 ล้าน"] },
+  { label: "รางวัลที่ 3 (หมุน 5 ครั้ง)", values: ["10,000", "10,000"] },
+  { label: "รางวัลที่ 4 (หมุน 10 ครั้ง)", values: ["3,000", "3,000"] },
+  { label: "รางวัลที่ 5 (หมุน 15 ครั้ง)", values: ["1,000", "1,000"] },
+  { label: "เลขท้าย 4 ตัว", values: ["150", "500"] },
+  { label: "เลขท้าย 3 ตัว", values: ["40", "–"] },
+  { label: "วันออกรางวัล", values: ["16 ทุกเดือน", "1 ทุกเดือน"] },
+  { label: "สิทธิถูกรางวัล", values: ["12 ครั้ง", "24 ครั้ง"] },
+  { label: "ถอนก่อนครบ 6 เดือน", values: ["98.00", "98.00"] },
+  { label: "ถือครบ 6 เดือน (ยังไม่ครบอายุ)", values: ["100.00", "100.00"] },
+  { label: "ครบกำหนดอายุ", values: ["100.15", "100.50"] },
+] as const;
+
+// V.5's own hidden accordion content for the two "salak-info-row" dropdowns
+// below (extracted from the design file — the React port kept only the
+// static header and dropped the expand/collapse content entirely).
+const GUARANTEE_ROWS = [
+  { label: "ยอดฝากขั้นต่ำ", y1: "100,000 บาท", y2: "1,000,000 บาท" },
+  { label: "สิทธิ์ที่ได้รับ", y1: "เลขท้าย 3 ตัว", y2: "เลขท้าย 4 ตัว" },
+] as const;
+
+const MIN_YIELD_ROWS = [
+  { label: "ฝาก 100,000 บาท", y1: "0.63%", y2: "0.25%" },
+  { label: "ฝาก 1,000,000 บาท", y1: "0.81%", y2: "0.85%" },
+  { label: "ฝาก 10,000,000 บาท", y1: "0.81%", y2: "0.85%" },
 ] as const;
 
 const CONDITIONS = [
   "กำหนดงวด/หมวดอักษรเฉพาะรางวัลที่ 1 และ 2",
-  "โอนเงินรางวัลเข้าบัญชีคู่โอนวันถัดจากวันออกรางวัล",
+  "โอนเงินรางวัลเข้าบัญชีหลักโอนวันถัดจากวันออกรางวัล",
   "ใช้เป็นหลักทรัพย์กู้เงินธนาคารออมสินไม่ได้",
   "เงื่อนไขการรับรางวัลเป็นไปตามที่ธนาคารประกาศ",
   "ถ้าถูกรางวัล ควรถอนหลังวันออกรางวัลเพื่อไม่เสียสิทธิ์",
@@ -41,13 +60,16 @@ const CONDITIONS = [
 
 // Matches the prototype's salakInfo screen exactly (extracted by driving
 // designs/…V.4.html: the sky/grass hero with a coin-fountain + speech-bubble
-// pig, two colored info rows, and the 1-year/2-year comparison table).
-// Content is the same official sales-sheet facts as before; only the layout
-// was rebuilt to match — informational only, no backend needed.
+// pig, two expandable info rows, and the 1-year/2-year comparison table).
+// The two info rows' expanded content and the "(หมุน N ครั้ง)" reward-tier
+// wording are sourced from V.5's own hidden accordion data and the official
+// GSB sales sheets respectively — informational only, no backend needed.
 export function SalakInfo() {
   const navigate = useNavigate();
   const [fountainKey, setFountainKey] = useState(0);
   const [pigTapping, setPigTapping] = useState(false);
+  const [guaranteeOpen, setGuaranteeOpen] = useState(false);
+  const [minYieldOpen, setMinYieldOpen] = useState(false);
 
   // Matches the prototype's `playFountain`: tapping the pig replays the
   // coin-fountain animation (it isn't tied to navigation at all — "ซื้อสลาก
@@ -125,38 +147,99 @@ export function SalakInfo() {
         </div>
 
         <div className="salak-info-row-card salak-info-row-card--peach">
-          <button type="button" className="salak-info-row">
+          <button
+            type="button"
+            className="salak-info-row"
+            onClick={() => setGuaranteeOpen((v) => !v)}
+            aria-expanded={guaranteeOpen}
+          >
             <span>
               <p className="salak-info-row__title">การันตีรางวัลรายเดือน</p>
               <p className="salak-info-row__subtitle">ฝากถึงเกณฑ์ ลุ้นไม่พลาดทุกเดือน ดูเงื่อนไข</p>
             </span>
-            <span className="salak-info-row__chevron">▸</span>
+            <span className="salak-info-row__chevron">{guaranteeOpen ? "▾" : "▸"}</span>
           </button>
+          {guaranteeOpen && (
+            <div className="salak-info-row-card__body">
+              <div className="salak-info-subtable">
+                <div className="salak-info-subtable__row salak-info-subtable__row--head">
+                  <span className="salak-info-subtable__label">รายการ</span>
+                  <span className="salak-info-subtable__value">1 ปี</span>
+                  <span className="salak-info-subtable__value">2 ปี</span>
+                </div>
+                {GUARANTEE_ROWS.map((row) => (
+                  <div className="salak-info-subtable__row" key={row.label}>
+                    <span className="salak-info-subtable__label">{row.label}</span>
+                    <span className="salak-info-subtable__value">{row.y1}</span>
+                    <span className="salak-info-subtable__value">{row.y2}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="salak-info-row-card salak-info-row-card--mint">
-          <button type="button" className="salak-info-row">
+          <button
+            type="button"
+            className="salak-info-row"
+            onClick={() => setMinYieldOpen((v) => !v)}
+            aria-expanded={minYieldOpen}
+          >
             <span>
               <p className="salak-info-row__title">ต่อให้ไม่ถูกรางวัลเลย ก็ไม่ขาดทุน :)</p>
               <p className="salak-info-row__subtitle">การันตีผลตอบแทนขั้นต่ำ สูงสุด 0.85% ต่อปี</p>
             </span>
-            <span className="salak-info-row__chevron">▸</span>
+            <span className="salak-info-row__chevron">{minYieldOpen ? "▾" : "▸"}</span>
           </button>
+          {minYieldOpen && (
+            <div className="salak-info-row-card__body">
+              <div className="salak-info-subtable">
+                <div className="salak-info-subtable__row salak-info-subtable__row--head">
+                  <span className="salak-info-subtable__label">ยอดฝาก</span>
+                  <span className="salak-info-subtable__value">1 ปี</span>
+                  <span className="salak-info-subtable__value">2 ปี</span>
+                </div>
+                {MIN_YIELD_ROWS.map((row) => (
+                  <div className="salak-info-subtable__row" key={row.label}>
+                    <span className="salak-info-subtable__label">{row.label}</span>
+                    <span className="salak-info-subtable__value">{row.y1}</span>
+                    <span className="salak-info-subtable__value">{row.y2}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="salak-info-subtable__footnote">
+                คิดจากดอกเบี้ย+เงินรางวัลการันตีรวมกัน เทียบเท่าอัตราดอกเบี้ยต่อปี ไม่หักภาษี
+              </p>
+            </div>
+          )}
         </div>
 
-        <div className="salak-info-table">
-          <div className="salak-info-table__row salak-info-table__row--head">
-            <span className="salak-info-table__label">รายการ</span>
-            <span className="salak-info-table__value">1 ปี</span>
-            <span className="salak-info-table__value">2 ปี</span>
-          </div>
-          {TABLE_ROWS.map((row) => (
-            <div className="salak-info-table__row" key={row.label}>
-              <span className="salak-info-table__label">{row.label}</span>
-              <span className="salak-info-table__value">{row.y1}</span>
-              <span className="salak-info-table__value">{row.y2}</span>
-            </div>
-          ))}
+        <div className="salak-info-table-scroll">
+          <table className="salak-info-table">
+            <thead>
+              <tr className="salak-info-table__row salak-info-table__row--head">
+                <th className="salak-info-table__label">รายการ</th>
+                {TABLE_COLUMNS.map((col) => (
+                  <th className="salak-info-table__value" key={col}>
+                    {col}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {TABLE_ROWS.map((row) => (
+                <tr className="salak-info-table__row" key={row.label}>
+                  <td className="salak-info-table__label">{row.label}</td>
+                  {row.values.map((v, i) => (
+                    <td className="salak-info-table__value" key={i}>
+                      {v}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
 
         <div className="salak-info-conditions">

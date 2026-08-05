@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { ChangeEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
 import type { Account, KapookBuyFromGoalResponse, KapookGoalResponse, SalakProduct } from "../lib/types";
@@ -7,8 +8,6 @@ import { AppShell } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
-import { BottomSheet } from "../components/BottomSheet";
-import { Keypad } from "../components/Keypad";
 import { SlideToConfirm } from "../components/SlideToConfirm";
 import { useAuth } from "../context/AuthContext";
 import { useKapook } from "../context/KapookContext";
@@ -74,9 +73,7 @@ export function KapookBuyFromPiggy() {
   const [serverGoal, setServerGoal] = useState<KapookGoalResponse | null | undefined>(undefined);
   const [step, setStep] = useState<Step>("amount");
   const [amount, setAmount] = useState(0);
-  const [keypadOpen, setKeypadOpen] = useState(false);
-  const [keypadInput, setKeypadInput] = useState("");
-  const [amountBeforeKeypad, setAmountBeforeKeypad] = useState(0);
+  const [editingAmount, setEditingAmount] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -130,25 +127,14 @@ export function KapookBuyFromPiggy() {
     !!goal && !!serverGoal?.buy_eligible && amount > 0 && amount <= availableBalance && !notMultipleOf1000;
   const units = product ? Math.floor(amount / Number(product.unit_price)) : 0;
 
-  function openKeypad() {
-    setKeypadInput(amount ? String(amount) : "");
-    setAmountBeforeKeypad(amount);
-    setKeypadOpen(true);
-  }
-
-  // Every keystroke updates the amount on the page itself immediately —
-  // matches a real banking-app keypad, no separate readout duplicated
-  // inside the sheet — showing exactly what was typed (capped at the saved
+  // Real device keyboard instead of a custom on-screen digit grid — avoids
+  // the grid's small tap targets mis-registering when the page scrolls
+  // while it's open — showing exactly what was typed (capped at the saved
   // balance), not a silently-rounded value.
-  function applyKeypadValue(rawDigits: string) {
-    setKeypadInput(rawDigits);
-    const n = parseInt(rawDigits || "0", 10) || 0;
+  function handleAmountChange(e: ChangeEvent<HTMLInputElement>) {
+    const digits = e.target.value.replace(/\D/g, "").slice(0, 9);
+    const n = digits ? parseInt(digits, 10) : 0;
     setAmount(Math.min(n, availableBalance));
-  }
-
-  function keypadCancel() {
-    setAmount(amountBeforeKeypad);
-    setKeypadOpen(false);
   }
 
   async function handleFinalConfirm() {
@@ -197,13 +183,35 @@ export function KapookBuyFromPiggy() {
               </div>
             </div>
 
-            <button type="button" onClick={openKeypad} className="transfer-amount-trigger mt-3" data-testid="buy-piggy-amount-trigger">
+            <label
+              className="transfer-amount-trigger mt-3"
+              data-testid="buy-piggy-amount-trigger"
+              onClick={() => !editingAmount && setEditingAmount(true)}
+            >
               <span className="transfer-amount-trigger__label">จำนวนเงิน</span>
-              <span className={`transfer-amount-trigger__value ${amount > 0 ? "" : "transfer-amount-trigger__value--muted"}`}>
-                {formatTHB(amount)}
-              </span>
+              {editingAmount ? (
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  enterKeyHint="done"
+                  maxLength={9}
+                  autoComplete="off"
+                  autoFocus
+                  className="transfer-amount-trigger__value"
+                  placeholder="0"
+                  value={amount ? String(amount) : ""}
+                  onChange={handleAmountChange}
+                  onBlur={() => setEditingAmount(false)}
+                  data-testid="buy-piggy-amount-input"
+                />
+              ) : (
+                <span className={`transfer-amount-trigger__value ${amount > 0 ? "" : "transfer-amount-trigger__value--muted"}`}>
+                  {formatTHB(amount)}
+                </span>
+              )}
               <span className="transfer-amount-trigger__note">ยอดเงินจากการออมสะสม</span>
-            </button>
+            </label>
             {notMultipleOf1000 ? (
               <p className="amount-error text-center" data-testid="buy-piggy-amount-error">
                 กรุณาระบุจำนวนเป็นจำนวนเต็มพันบาท (เช่น 1,000, 2,000)
@@ -282,17 +290,6 @@ export function KapookBuyFromPiggy() {
           </div>
         </div>
       )}
-
-      <BottomSheet open={keypadOpen} onClose={keypadCancel}>
-        <Keypad
-          title="กำหนดจำนวนเงินที่จะซื้อ"
-          showDisplay={false}
-          onDigit={(d) => applyKeypadValue((keypadInput + d).slice(0, 9))}
-          onDelete={() => applyKeypadValue(keypadInput.slice(0, -1))}
-          onCancel={keypadCancel}
-          onConfirm={() => setKeypadOpen(false)}
-        />
-      </BottomSheet>
     </AppShell>
   );
 }

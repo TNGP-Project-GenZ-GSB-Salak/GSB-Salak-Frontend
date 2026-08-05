@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type SVGProps } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type SVGProps } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import * as api from "../lib/api";
 import type { Account, BuySalakResponse, SalakProduct } from "../lib/types";
@@ -10,11 +10,10 @@ import { PageHeader } from "../components/PageHeader";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { BottomSheet } from "../components/BottomSheet";
-import { Keypad } from "../components/Keypad";
 import { SlideToConfirm } from "../components/SlideToConfirm";
 
 type Step = "transfer" | "confirm" | "success";
-type Sheet = "amount" | "keypad" | null;
+type Sheet = "amount" | null;
 
 const PRESET_AMOUNTS = [1000, 5000, 10000, 50000, 100000, 500000];
 const TAG_OPTIONS = ["ซื้อสลาก", "ซื้อสลากให้ลูก", "ออมเงิน"];
@@ -35,7 +34,7 @@ export function BuySalak() {
   const [step, setStep] = useState<Step>("transfer");
   const [sheet, setSheet] = useState<Sheet>(null);
   const [amount, setAmount] = useState(0);
-  const [keypadInput, setKeypadInput] = useState("");
+  const [editingAmount, setEditingAmount] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [receipt, setReceipt] = useState<BuySalakResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -87,23 +86,17 @@ export function BuySalak() {
     setSheet(null);
   }
 
-  function openKeypad() {
-    setKeypadInput(amount ? String(amount) : "");
-    setSheet("keypad");
+  // Real device keyboard instead of a custom on-screen digit grid — avoids
+  // the grid's small tap targets mis-registering when the page scrolls
+  // while it's open.
+  function startCustomAmount() {
+    closeSheet();
+    setEditingAmount(true);
   }
 
-  function keypadDigit(digit: string) {
-    setKeypadInput((prev) => (prev + digit).slice(0, 9));
-  }
-
-  function keypadDelete() {
-    setKeypadInput((prev) => prev.slice(0, -1));
-  }
-
-  function keypadConfirm() {
-    setAmount(parseInt(keypadInput || "0", 10) || 0);
-    setKeypadInput("");
-    setSheet(null);
+  function handleAmountChange(e: ChangeEvent<HTMLInputElement>) {
+    const digits = e.target.value.replace(/\D/g, "").slice(0, 9);
+    setAmount(digits ? parseInt(digits, 10) : 0);
   }
 
   function toggleTag(tag: string) {
@@ -177,12 +170,40 @@ export function BuySalak() {
               </div>
             </div>
 
-            <button type="button" onClick={() => setSheet("amount")} className="transfer-amount-trigger" data-testid="amount-trigger">
+            <label
+              className="transfer-amount-trigger"
+              data-testid="amount-trigger"
+              onClick={() => !editingAmount && setSheet("amount")}
+            >
               <span className="transfer-amount-trigger__label">จำนวนเงิน</span>
-              <span className={`transfer-amount-trigger__value ${amount > 0 ? "" : "transfer-amount-trigger__value--muted"}`}>
-                {formatTHB(amount)}
-              </span>
-            </button>
+              {editingAmount ? (
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  enterKeyHint="done"
+                  maxLength={9}
+                  autoComplete="off"
+                  autoFocus
+                  className="transfer-amount-trigger__value"
+                  placeholder="0"
+                  value={amount ? String(amount) : ""}
+                  onChange={handleAmountChange}
+                  onBlur={() => setEditingAmount(false)}
+                  data-testid="amount-input"
+                />
+              ) : (
+                <span className={`transfer-amount-trigger__value ${amount > 0 ? "" : "transfer-amount-trigger__value--muted"}`}>
+                  {formatTHB(amount)}
+                </span>
+              )}
+            </label>
+            {product && (
+              <p className="text-muted text-center">
+                ฝากขั้นต่ำ ฿{formatTHB(product.min_purchase)} สูงสุด ฿{formatTHB(product.max_purchase)}
+                {Number(product.step_amount) > 0 && ` *ระบุจำนวนที่หารด้วย ฿${formatTHB(product.step_amount)} ลงตัว`}
+              </p>
+            )}
             {amountError && (
               <p className="amount-error text-center" data-testid="amount-error">
                 {amountError}
@@ -273,7 +294,7 @@ export function BuySalak() {
               {value.toLocaleString("en-US")}
             </button>
           ))}
-          <button type="button" onClick={openKeypad} className="action-sheet__action action-sheet__action--strong" data-testid="amount-custom">
+          <button type="button" onClick={startCustomAmount} className="action-sheet__action action-sheet__action--strong" data-testid="amount-custom">
             ระบุจำนวนเงิน
           </button>
         </div>
@@ -282,19 +303,6 @@ export function BuySalak() {
             ยกเลิก
           </button>
         </div>
-      </BottomSheet>
-
-      <BottomSheet open={sheet === "keypad"} onClose={closeSheet}>
-        <Keypad
-          title="กำหนดจำนวนเงิน"
-          subText={product ? `ฝากขั้นต่ำ ฿${formatTHB(product.min_purchase)} สูงสุด ฿${formatTHB(product.max_purchase)}` : ""}
-          footerText={product ? `*ระบุจำนวนที่หารด้วย ฿${formatTHB(product.step_amount)} ลงตัว` : ""}
-          display={keypadInput ? Number(keypadInput).toLocaleString("en-US") : "0"}
-          onDigit={keypadDigit}
-          onDelete={keypadDelete}
-          onCancel={closeSheet}
-          onConfirm={keypadConfirm}
-        />
       </BottomSheet>
     </AppShell>
   );

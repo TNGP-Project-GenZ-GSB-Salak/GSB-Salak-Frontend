@@ -5,6 +5,7 @@ import type { Account } from "../lib/types";
 import { formatTHB, maskAccountNumber } from "../lib/format";
 import { findPrimaryAccount } from "../lib/accounts";
 import { useAuth } from "../context/AuthContext";
+import { useKapook } from "../context/KapookContext";
 import { AppShell } from "../components/AppShell";
 import { PigMascot, TipCloud, TipGround } from "../components/PigMascot";
 
@@ -15,14 +16,14 @@ import { PigMascot, TipCloud, TipGround } from "../components/PigMascot";
 // same reason (no loyalty-points backend concept exists) — kept as a static
 // display to match the prototype's header, not a real feature.
 const HOME_ACTIONS = [
-  { label: "โอนเงิน", icon: TransferIcon, variant: "pink" },
-  { label: "ถอนเงินสด", icon: WithdrawIcon, variant: "pink" },
-  { label: "รายการโปรด", icon: FavoritesIcon, variant: "pink" },
-  { label: "บิล", icon: BillIcon, variant: "pink" },
-  { label: "สลากดิจิทัล", icon: SalakIcon, variant: "salak" },
-  { label: "เติมเงิน", icon: TopUpIcon, variant: "pink" },
-  { label: "ขอตรวจเครดิตบูโร", icon: CreditCheckIcon, variant: "pink" },
-  { label: "เมนูอื่นๆ", icon: MoreIcon, variant: "pink" },
+  { label: "โอนเงิน", icon: TransferIcon, variant: "pink", to: undefined },
+  { label: "ถอนเงินสด", icon: WithdrawIcon, variant: "pink", to: undefined },
+  { label: "รายการโปรด", icon: FavoritesIcon, variant: "pink", to: undefined },
+  { label: "บิล", icon: BillIcon, variant: "pink", to: undefined },
+  { label: "สลากดิจิทัล", icon: SalakIcon, variant: "salak", to: "/salak" },
+  { label: "เติมเงิน", icon: TopUpIcon, variant: "pink", to: undefined },
+  { label: "ขอตรวจเครดิตบูโร", icon: CreditCheckIcon, variant: "pink", to: undefined },
+  { label: "เมนูอื่นๆ", icon: MoreIcon, variant: "pink", to: undefined },
 ] as const;
 
 function getInitials(name: string): string {
@@ -56,6 +57,7 @@ const SALAK_TIPS = [
 
 export function Home() {
   const { user } = useAuth();
+  const { state: kapookState } = useKapook();
   const [savings, setSavings] = useState<Account | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [showBalance, setShowBalance] = useState(true);
@@ -90,10 +92,6 @@ export function Home() {
               <p className="home-header__name">{user?.full_name ?? user?.username}</p>
             </div>
           </div>
-          <span className="home-header__points" data-testid="points-pill">
-            <LockIcon className="h-3 w-3" />
-            1,280 pts
-          </span>
         </div>
 
         <div className="home-header__balance-block">
@@ -123,17 +121,30 @@ export function Home() {
         {error && <p className="error-box">{error}</p>}
 
         <div className="card home-actions">
-          {HOME_ACTIONS.map((action) => (
-            <div className="home-actions__item" key={action.label}>
-              <span className={`home-actions__icon home-actions__icon--${action.variant}`}>
-                <action.icon className="h-7 w-7" />
-              </span>
-              <span className="home-actions__label">{action.label}</span>
-            </div>
-          ))}
+          {HOME_ACTIONS.map((action) =>
+            action.to ? (
+              <Link to={action.to} className="home-actions__item" key={action.label}>
+                <span className={`home-actions__icon home-actions__icon--${action.variant}`}>
+                  <action.icon className="h-7 w-7" />
+                </span>
+                <span className="home-actions__label">{action.label}</span>
+              </Link>
+            ) : (
+              <div className="home-actions__item" key={action.label}>
+                <span className={`home-actions__icon home-actions__icon--${action.variant}`}>
+                  <action.icon className="h-7 w-7" />
+                </span>
+                <span className="home-actions__label">{action.label}</span>
+              </div>
+            ),
+          )}
         </div>
 
-        <Link to="/salak/info" data-testid="salak-promo-banner" className="home-tip-card">
+        <Link
+          to={kapookState.termsAccepted ? "/kapook" : "/salak/info"}
+          data-testid="salak-promo-banner"
+          className="home-tip-card"
+        >
           <span className="home-tip-card__sun" />
           <TipCloud className="home-tip-card__cloud" />
           <TipGround className="home-tip-card__ground" />
@@ -231,15 +242,6 @@ function MoreIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} {...props}>
       <path d="M5 7h14M5 12h14M5 17h14" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-// Transcribed 1:1 from V.4's own padlock icon path (extracted, not redrawn).
-function LockIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 14 16" fill="currentColor" {...props}>
-      <path d="M12.5,8H4.75V4.7813C4.75,3.5625 5.7188,2.5313 6.9688,2.5C8.2188,2.5 9.25,3.5313 9.25,4.75V5.25C9.25,5.6875 9.5625,6 10,6H11C11.4062,6 11.75,5.6875 11.75,5.25V4.75C11.75,2.125 9.5938,0 6.9688,0C4.3438,0.0313 2.25,2.1875 2.25,4.8125V8H1.5C0.6563,8 0,8.6875 0,9.5V14.5C0,15.3438 0.6563,16 1.5,16H12.5C13.3125,16 14,15.3438 14,14.5V9.5C14,8.6875 13.3125,8 12.5,8ZM8.25,12.75C8.25,13.4688 7.6875,14 7,14C6.2813,14 5.75,13.4688 5.75,12.75V11.25C5.75,10.5625 6.2813,10 7,10C7.6875,10 8.25,10.5625 8.25,11.25V12.75Z" />
     </svg>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { SVGProps } from "react";
+import type { ChangeEvent, SVGProps } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
 import type { Account } from "../lib/types";
@@ -8,7 +8,6 @@ import { computeAvailableBalance, cumulativeCommitted } from "../lib/kapookStore
 import { AppShell } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
 import { BottomSheet } from "../components/BottomSheet";
-import { Keypad } from "../components/Keypad";
 import { SlideToConfirm } from "../components/SlideToConfirm";
 import { CELEBRATE_STICKERS } from "../components/PigMascot";
 import { useKapook } from "../context/KapookContext";
@@ -32,10 +31,8 @@ export function KapookDeposit() {
   const [accounts, setAccounts] = useState<Account[] | null>(null);
   const [sourceAccountId, setSourceAccountId] = useState<string | null>(null);
   const [sourceSheetOpen, setSourceSheetOpen] = useState(false);
-  const [keypadOpen, setKeypadOpen] = useState(false);
+  const [editingAmount, setEditingAmount] = useState(false);
   const [amount, setAmount] = useState(0);
-  const [keypadInput, setKeypadInput] = useState("");
-  const [amountBeforeKeypad, setAmountBeforeKeypad] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -72,25 +69,13 @@ export function KapookDeposit() {
   const cappedByBalance = availableBalance < remainingToTarget;
   const canSend = amount > 0 && amount <= depositCap;
 
-  function openKeypad() {
-    setKeypadInput(amount ? String(amount) : "");
-    setAmountBeforeKeypad(amount);
-    setKeypadOpen(true);
-  }
-
-  // Matches how a real banking-app keypad works: every keystroke updates
-  // the amount shown on the page itself immediately (no separate readout
-  // duplicated inside the keypad sheet) — capped live as you type, same cap
-  // as before, just applied continuously instead of only on confirm.
-  function applyKeypadValue(rawDigits: string) {
-    setKeypadInput(rawDigits);
-    const n = parseInt(rawDigits || "0", 10) || 0;
+  // Real device keyboard instead of a custom on-screen digit grid — avoids
+  // the grid's small tap targets mis-registering when the page scrolls
+  // while it's open. Capped live as you type, same cap as before.
+  function handleAmountChange(e: ChangeEvent<HTMLInputElement>) {
+    const digits = e.target.value.replace(/\D/g, "").slice(0, 9);
+    const n = digits ? parseInt(digits, 10) : 0;
     setAmount(Math.min(n, depositCap));
-  }
-
-  function keypadCancel() {
-    setAmount(amountBeforeKeypad);
-    setKeypadOpen(false);
   }
 
   async function handleConfirm() {
@@ -147,12 +132,34 @@ export function KapookDeposit() {
             </div>
           </div>
 
-          <button type="button" onClick={openKeypad} className="transfer-amount-trigger mt-3" data-testid="deposit-amount-trigger">
+          <label
+            className="transfer-amount-trigger mt-3"
+            data-testid="deposit-amount-trigger"
+            onClick={() => !editingAmount && setEditingAmount(true)}
+          >
             <span className="transfer-amount-trigger__label">ออมวันนี้เท่าไหร่</span>
-            <span className={`transfer-amount-trigger__value ${amount > 0 ? "" : "transfer-amount-trigger__value--muted"}`}>
-              {formatTHB(amount)}
-            </span>
-          </button>
+            {editingAmount ? (
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                enterKeyHint="done"
+                maxLength={9}
+                autoComplete="off"
+                autoFocus
+                className="transfer-amount-trigger__value"
+                placeholder="0"
+                value={amount ? String(amount) : ""}
+                onChange={handleAmountChange}
+                onBlur={() => setEditingAmount(false)}
+                data-testid="deposit-amount-input"
+              />
+            ) : (
+              <span className={`transfer-amount-trigger__value ${amount > 0 ? "" : "transfer-amount-trigger__value--muted"}`}>
+                {formatTHB(amount)}
+              </span>
+            )}
+          </label>
           <p className="text-muted text-center">
             ออมได้สูงสุด ฿{formatTHB(depositCap)}{" "}
             {cappedByBalance
@@ -194,17 +201,6 @@ export function KapookDeposit() {
             ))}
           </div>
         </div>
-      </BottomSheet>
-
-      <BottomSheet open={keypadOpen} onClose={keypadCancel}>
-        <Keypad
-          title="กำหนดจำนวนเงินที่จะออม"
-          showDisplay={false}
-          onDigit={(d) => applyKeypadValue((keypadInput + d).slice(0, 9))}
-          onDelete={() => applyKeypadValue(keypadInput.slice(0, -1))}
-          onCancel={keypadCancel}
-          onConfirm={() => setKeypadOpen(false)}
-        />
       </BottomSheet>
     </AppShell>
   );

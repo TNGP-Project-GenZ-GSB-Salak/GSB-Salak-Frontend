@@ -5,10 +5,8 @@ import { registerFreshUser } from "./helpers/auth.js";
 async function enterAmountViaKeypad(page, digits) {
   await page.getByTestId("amount-trigger").click();
   await page.getByTestId("amount-custom").click();
-  for (const digit of digits) {
-    await page.getByTestId(`keypad-key-${digit}`).click();
-  }
-  await page.getByTestId("keypad-confirm").click();
+  await page.getByTestId("amount-input").fill(digits.join(""));
+  await page.getByTestId("amount-input").evaluate((el) => el.blur());
 }
 
 test.describe("transaction history", () => {

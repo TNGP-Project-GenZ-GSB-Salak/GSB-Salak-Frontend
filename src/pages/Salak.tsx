@@ -17,7 +17,7 @@ import { Countdown } from "../components/Countdown";
 const SALAK_QUICK_ACTIONS = [
   { label: "ซื้อสลาก", icon: BuyIcon, to: "/salak/buy", testId: "salak-buy-action" },
   { label: "ข้อมูลผลิตภัณฑ์", icon: InfoIcon, to: "/salak/info", testId: "salak-info-action" },
-  { label: "ประวัติการออก", icon: ScheduleIcon, to: null, testId: undefined },
+  { label: "ประวัติการถอน", icon: ScheduleIcon, to: null, testId: undefined },
   { label: "ตั้งค่า", icon: GearIcon, to: null, testId: undefined },
 ] as const;
 
