@@ -69,8 +69,14 @@ export interface KapookState {
   // per-goal and only stops the sheet firing twice for the *same* goal),
   // this is permanent across every future goal the user ever opens.
   hideSalakSuggestion: boolean;
+  // The most recent *real* (server) active goal id KapookContext has
+  // observed - not written by anything else. Lets a later reconciliation
+  // ("the goal I knew about is gone now - did the system just buy it?")
+  // work even if no screen was open live to watch the transition happen;
+  // cleared back to null once that check has run.
+  lastKnownGoalId: string | null;
 }
 
 export function emptyKapookState(): KapookState {
-  return { goal: null, transactions: [], autoPurchaseNotice: null, hideSalakSuggestion: false };
+  return { goal: null, transactions: [], autoPurchaseNotice: null, hideSalakSuggestion: false, lastKnownGoalId: null };
 }

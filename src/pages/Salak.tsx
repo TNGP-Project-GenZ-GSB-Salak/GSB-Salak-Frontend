@@ -1,9 +1,8 @@
 import { useEffect, useState, type SVGProps } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
-import type { Account, Holding, SalakProduct } from "../lib/types";
+import type { Account, Holding, KapookGoalResponse, SalakProduct } from "../lib/types";
 import { formatTHB, maskAccountNumber } from "../lib/format";
-import { cumulativeCommitted, goalProgressPct, isGoalTargetReached } from "../lib/kapookStore";
 import { useKapook } from "../context/KapookContext";
 import { AppShell } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
@@ -23,11 +22,20 @@ const SALAK_QUICK_ACTIONS = [
 
 export function Salak() {
   const navigate = useNavigate();
-  const { state: kapookState, dismissAutoPurchaseNotice } = useKapook();
+  const { state: kapookState, dismissAutoPurchaseNotice, reportGoalObservation } = useKapook();
   const [salakAccount, setSalakAccount] = useState<Account | null | undefined>(undefined);
   const [holdings, setHoldings] = useState<Holding[] | null>(null);
   const [products, setProducts] = useState<SalakProduct[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The real goal (GET /kapook/goals/active), fetched once on mount - this
+  // screen checks state once per visit rather than polling; only the
+  // Tracker owns a live-polling countdown. Ticking here is still anchored
+  // on the server's own countdown_remaining_seconds, just never
+  // re-anchored again after this one fetch, so it can drift if the
+  // customer lingers here - accepted, since re-polling from a second
+  // screen at the same time as the Tracker was ruled out as unnecessary
+  // for this feature's demo needs.
+  const [goal, setGoal] = useState<KapookGoalResponse | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,9 +65,26 @@ export function Salak() {
     };
   }, []);
 
-  const goal = kapookState.goal;
-  const goalProduct = goal ? products?.find((p) => p.id === goal.productId) : null;
-  const reached = goal ? isGoalTargetReached(goal) : false;
+  useEffect(() => {
+    if (!kapookState.account) return;
+    let cancelled = false;
+    api
+      .getActiveKapookGoal(kapookState.account.id)
+      .then((g) => {
+        if (cancelled) return;
+        setGoal(g);
+        reportGoalObservation(g);
+      })
+      .catch((err) => !cancelled && setError(err instanceof Error ? err.message : "โหลดข้อมูลไม่สำเร็จ"));
+    return () => {
+      cancelled = true;
+    };
+  }, [kapookState.account, reportGoalObservation]);
+
+  const goalProduct = goal ? products?.find((p) => p.id === goal.product_id) : null;
+  const goalSaved = goal ? Number(goal.saving_amount) : 0;
+  const goalTarget = goal ? Number(goal.goal_amount) : 0;
+  const goalProgressPct = goalTarget > 0 ? Math.min(100, Math.round((goalSaved / goalTarget) * 100)) : 0;
 
   return (
     <AppShell>
@@ -108,18 +133,17 @@ export function Salak() {
             <div className="flex-1 min-w-0 text-left">
               <div className="flex items-baseline justify-between gap-2">
                 <span className="salak-goal-card__title">กำลังออมเพื่อซื้อ {goalProduct?.name ?? ""}</span>
-                <span className="salak-goal-card__pct">{goalProgressPct(goal)}%</span>
+                <span className="salak-goal-card__pct">{goalProgressPct}%</span>
               </div>
               <div className="salak-goal-card__bar">
-                <div className="salak-goal-card__bar-fill" style={{ width: `${goalProgressPct(goal)}%` }} />
+                <div className="salak-goal-card__bar-fill" style={{ width: `${goalProgressPct}%` }} />
               </div>
               <p className="salak-goal-card__meta">
-                ฿{formatTHB(cumulativeCommitted(goal))} จาก ฿{formatTHB(goal.targetAmount)}
+                ฿{formatTHB(goalSaved)} จาก ฿{formatTHB(goalTarget)}
               </p>
-              {reached && goal.goalReachedAt && (
+              {goal.target_reached && goal.countdown_remaining_seconds !== undefined && (
                 <p className="salak-goal-card__countdown">
-                  ระบบจะซื้อสลากให้อัตโนมัติใน{" "}
-                  <Countdown deadline={new Date(new Date(goal.goalReachedAt).getTime() + 24 * 60 * 60 * 1000).toISOString()} />
+                  ระบบจะซื้อสลากให้อัตโนมัติใน <Countdown remainingSeconds={goal.countdown_remaining_seconds} />
                 </p>
               )}
             </div>

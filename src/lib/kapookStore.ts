@@ -1,11 +1,5 @@
 import { emptyKapookState, type KapookGoal, type KapookState } from "./kapookTypes";
 
-// 24h goal-reached auto-purchase window (docs/GAPS.md §2.6; prompt/README.md
-// §Auto-purchase countdown). Deliberately a single named constant — lower it
-// locally while manually testing the countdown/auto-purchase path instead of
-// waiting a real day.
-export const GOAL_WINDOW_MS = 24 * 60 * 60 * 1000;
-
 export const FREE_WITHDRAWALS_PER_YEAR = 2;
 export const WITHDRAW_FEE_RATE = 0.02;
 
@@ -64,11 +58,6 @@ export function freeWithdrawalsRemaining(state: KapookState): number {
 
 export function withdrawFee(amount: number, state: KapookState): number {
   return freeWithdrawalsRemaining(state) > 0 ? 0 : Math.round(amount * WITHDRAW_FEE_RATE * 100) / 100;
-}
-
-export function msUntilAutoPurchase(goalReachedAt: string | null): number | null {
-  if (!goalReachedAt) return null;
-  return new Date(goalReachedAt).getTime() + GOAL_WINDOW_MS - Date.now();
 }
 
 // prompt/README.md: the goal's progress/percent/"has it been reached" is

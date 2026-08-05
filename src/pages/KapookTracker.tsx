@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
 import type { KapookGoalResponse, KapookTransactionResponse, SalakProduct } from "../lib/types";
@@ -34,6 +34,11 @@ export interface KapookCelebrateState {
 
 const CELEBRATE_DURATION_MS = 3200;
 
+// Only while a countdown is live (running or past its deadline and waiting
+// on the worker) - see the effect below. Every other screen checks the
+// auto-purchase notice once on mount instead of polling at all.
+const GOAL_POLL_INTERVAL_MS = 5000;
+
 // Matches the prototype's goalTracker screen (prompt/prototype-reference.html):
 // a sky/pig hero (swapping to a starry "party mode" backdrop once the goal is
 // reached), a summary card (product + cumulative-committed/target + progress
@@ -55,7 +60,7 @@ const CELEBRATE_DURATION_MS = 3200;
 export function KapookTracker() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { state, freeWithdrawalsRemaining, hideSalakSuggestionForever } = useKapook();
+  const { state, freeWithdrawalsRemaining, hideSalakSuggestionForever, reportGoalObservation } = useKapook();
   const [products, setProducts] = useState<SalakProduct[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [termsSheetOpen, setTermsSheetOpen] = useState(false);
@@ -64,6 +69,14 @@ export function KapookTracker() {
   // state, not an error - see GET /kapook/goals/active's 200-with-null
   // contract).
   const [goal, setGoal] = useState<KapookGoalResponse | null | undefined>(undefined);
+  // True once the countdown's own deadline has passed but the goal hasn't
+  // reflected an outcome yet - never inferred from the countdown reaching
+  // zero alone (that's a client-side guess); only from the server's own
+  // countdown_remaining_seconds, or from the Countdown component's onExpire
+  // triggering an immediate refetch. Never set back to false optimistically
+  // - only a fresh load (goal closed, or countdown_remaining_seconds again
+  // above zero, which shouldn't happen but would still recover) clears it.
+  const [processing, setProcessing] = useState(false);
   // Scoped server-side to this goal's own id (GET /kapook/goals/transactions)
   // - null while loading or once the goal itself is null/undefined, so a
   // closed goal's history can never render under a newly-opened one just
@@ -105,17 +118,46 @@ export function KapookTracker() {
     };
   }, []);
 
-  useEffect(() => {
+  // The single source of truth for both goal and processing: every call
+  // re-derives processing from the server's own countdown_remaining_seconds
+  // rather than trusting whatever the caller (a poll tick, or the
+  // Countdown's onExpire) already believed. Also feeds the shared
+  // auto-purchase-notice reconciliation - a poll that finds the goal newly
+  // gone is exactly the "did the system just buy it?" moment.
+  const loadGoal = useCallback(() => {
     if (!state.account) return;
-    let cancelled = false;
     api
       .getActiveKapookGoal(state.account.id)
-      .then((g) => !cancelled && setGoal(g))
-      .catch((err) => !cancelled && setLoadError(messageForError(err, "โหลดข้อมูลไม่สำเร็จ")));
-    return () => {
-      cancelled = true;
-    };
-  }, [state.account]);
+      .then((g) => {
+        setGoal(g);
+        setProcessing(!!g?.target_reached && (g.countdown_remaining_seconds ?? 0) <= 0);
+        reportGoalObservation(g);
+      })
+      .catch((err) => setLoadError(messageForError(err, "โหลดข้อมูลไม่สำเร็จ")));
+  }, [state.account, reportGoalObservation]);
+
+  useEffect(() => {
+    loadGoal();
+  }, [loadGoal]);
+
+  // Polls only while a countdown is actually live (running, or expired and
+  // waiting on the worker) - never otherwise. Other screens don't poll at
+  // all; they just check the auto-purchase notice once, via
+  // reportGoalObservation's own once-per-account reconciliation.
+  useEffect(() => {
+    if (!goal?.target_reached) return;
+    const id = window.setInterval(loadGoal, GOAL_POLL_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [goal?.target_reached, loadGoal]);
+
+  // The countdown component's own client-side timer reaching zero - refetch
+  // immediately rather than waiting for the next scheduled poll, and never
+  // treat this as a purchase itself (the worker is the only thing that
+  // buys anything now).
+  const handleCountdownExpire = useCallback(() => {
+    setProcessing(true);
+    loadGoal();
+  }, [loadGoal]);
 
   useEffect(() => {
     if (!goal) {
@@ -227,11 +269,19 @@ export function KapookTracker() {
 
           {goal.target_reached && goal.countdown_remaining_seconds !== undefined && (
             <div className="kapook-countdown-box">
-              <p className="kapook-countdown-box__label">ระบบจะซื้อสลากให้อัตโนมัติใน</p>
-              <p className="kapook-countdown-box__value">
-                <Countdown deadline={new Date(Date.now() + goal.countdown_remaining_seconds * 1000).toISOString()} />
-              </p>
-              <p className="kapook-countdown-box__hint">กดปุ่ม "ซื้อสลาก" ด้านล่างเพื่อเลือกเอง</p>
+              {processing ? (
+                <p className="kapook-countdown-box__value" data-testid="auto-purchase-processing">
+                  กำลังดำเนินการซื้อสลากให้คุณอัตโนมัติ... ⏳
+                </p>
+              ) : (
+                <>
+                  <p className="kapook-countdown-box__label">ระบบจะซื้อสลากให้อัตโนมัติใน</p>
+                  <p className="kapook-countdown-box__value">
+                    <Countdown remainingSeconds={goal.countdown_remaining_seconds} onExpire={handleCountdownExpire} />
+                  </p>
+                  <p className="kapook-countdown-box__hint">กดปุ่ม "ซื้อสลาก" ด้านล่างเพื่อเลือกเอง</p>
+                </>
+              )}
             </div>
           )}
 
@@ -321,7 +371,9 @@ export function KapookTracker() {
                 txn.type === "deposit"
                   ? "ออมเงิน"
                   : txn.type === "buy_salak"
-                    ? "ซื้อสลากแล้ว"
+                    ? txn.is_automatic_purchase
+                      ? "ระบบซื้อสลากให้อัตโนมัติแล้ว"
+                      : "ซื้อสลากแล้ว"
                     : txn.type === "salak_expiration"
                       ? "สลากหมดอายุ"
                       : "ถอนเงินคืนบัญชีหลัก";

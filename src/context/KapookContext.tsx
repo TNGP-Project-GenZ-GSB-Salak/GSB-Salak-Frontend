@@ -13,13 +13,7 @@ import type { KapookBuyFromGoalResponse, KapookGoalResponse, KapookWithdrawRespo
 import { findPrimaryAccount } from "../lib/accounts";
 import { NO_PRIMARY_ACCOUNT_MESSAGE } from "../lib/kapookErrorMessages";
 import { hasAtMostTwoDecimals } from "../lib/moneyValidation";
-import {
-  freeWithdrawalsRemaining,
-  generateId,
-  loadState,
-  msUntilAutoPurchase,
-  saveState,
-} from "../lib/kapookStore";
+import { freeWithdrawalsRemaining, generateId, loadState, saveState } from "../lib/kapookStore";
 import type { KapookAccountInfo, KapookGoal, KapookState, KapookTransaction } from "../lib/kapookTypes";
 import { emptyKapookState } from "../lib/kapookTypes";
 import { useAuth } from "./AuthContext";
@@ -40,7 +34,6 @@ interface KapookContextState extends KapookState {
 interface KapookContextValue {
   state: KapookContextState;
   freeWithdrawalsRemaining: number;
-  msUntilAutoPurchase: number | null;
   // Records the customer's acceptance with the bank (POST
   // /kapook/terms/accept). Takes no KYC data - the wizard's identity steps
   // are review-only theatre; nothing they display is ever transmitted.
@@ -77,6 +70,16 @@ interface KapookContextValue {
    * kapook account itself via POST /kapook/goals/buy - NOT the public
    * buy-Salak endpoint. */
   confirmGoalPurchase: (amount?: number) => Promise<KapookBuyFromGoalResponse>;
+  /** Feeds the auto-purchase-notice reconciliation a just-fetched real goal
+   * (or null) - called both by this context's own once-per-account check
+   * and by KapookTracker's live polling, so either whichever screen is
+   * open when a countdown resolves, or the next screen to check at all,
+   * ends up discovering the outcome. A non-null goal just remembers its id;
+   * null checks whether the previously-remembered goal's history shows the
+   * system bought it unattended, and sets autoPurchaseNotice only then -
+   * never after a manual purchase, since that goal's last buy_salak row
+   * carries is_automatic_purchase: false. */
+  reportGoalObservation: (goal: KapookGoalResponse | null) => void;
   dismissAutoPurchaseNotice: () => void;
   /** Permanently stops the salak-suggestion sheet from ever firing again,
    * for every future goal — set when the user checks "ไม่ต้องแสดงคำแนะนำนี้อีก"
@@ -350,46 +353,88 @@ export function KapookProvider({ children }: { children: ReactNode }) {
     persist({ ...state, hideSalakSuggestion: true });
   }, [state, persist]);
 
-  // Fires the goal-reached auto-purchase once the 24h window elapses, regardless of
-  // which screen the user is on — docs/GAPS.md §2.6's "system buys automatically" is
-  // meant to happen unattended, not only while KapookTracker happens to be mounted.
-  // Sets `autoPurchaseNotice` (prompt/prototype-reference.html's
-  // `autoPurchaseLotAmount`) so the Salak overview can show a dismissible
-  // "bought for you automatically" banner — a manual purchase never sets this.
-  useEffect(() => {
-    if (!state.goal || !state.goal.goalReachedAt) return;
-    const id = window.setInterval(() => {
-      const remaining = msUntilAutoPurchase(state.goal!.goalReachedAt);
-      if (remaining !== null && remaining <= 0 && !purchaseInFlight.current) {
-        const spent = state.goal!.availableBalance;
-        confirmGoalPurchase()
-          .then(() => {
-            setState((prev) => {
-              const next = { ...prev, autoPurchaseNotice: spent };
-              if (userId) saveState(userId, next);
-              return next;
-            });
-          })
-          .catch(() => {
-            // Unattended failure (short funding balance, inactive product, etc.) — leave
-            // the goal active so the user can retry manually; docs/GAPS.md D12/D13 leave
-            // this unspecified for the real backend too.
-          });
+  // Always the latest state, readable from inside a callback without being
+  // one of its dependencies - reportGoalObservation below needs the
+  // *current* lastKnownGoalId at call time, not the value captured whenever
+  // the callback itself was last recreated.
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  // The browser no longer performs the purchase itself - the real one only
+  // ever happens server-side (the worker), so this is discovery, not
+  // action. A non-null goal just remembers its id for next time; null means
+  // the previously-remembered goal is gone, so its history is checked once
+  // to see whether the system bought it unattended - the only case that
+  // sets autoPurchaseNotice. Safe to call repeatedly with the same goal (or
+  // repeatedly with null): the id comparison and the state guard inside the
+  // async branch make every call after the first a no-op.
+  const reportGoalObservation = useCallback(
+    (observedGoal: KapookGoalResponse | null) => {
+      if (observedGoal) {
+        if (stateRef.current.lastKnownGoalId === observedGoal.id) return;
+        persist({ ...stateRef.current, lastKnownGoalId: observedGoal.id });
+        return;
       }
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [state.goal, confirmGoalPurchase, userId]);
+
+      const closedGoalId = stateRef.current.lastKnownGoalId;
+      if (!closedGoalId) return;
+      void api
+        .listKapookGoalHistory(closedGoalId, { limit: 5 })
+        .then((history) => {
+          const lastPurchase = history.find((t) => t.type === "buy_salak");
+          setState((prev) => {
+            if (prev.lastKnownGoalId !== closedGoalId) return prev; // already reconciled elsewhere
+            const next: KapookState = { ...prev, lastKnownGoalId: null };
+            if (lastPurchase?.is_automatic_purchase) {
+              next.autoPurchaseNotice = Number(lastPurchase.amount);
+            }
+            if (userId) saveState(userId, next);
+            return next;
+          });
+        })
+        .catch(() => {
+          // Best-effort - lastKnownGoalId stays set, so the next observation
+          // (this session's next poll, or the next login) retries the check.
+        });
+    },
+    [persist, userId],
+  );
+
+  // Once per signed-in account (not on every render/poll): if there's
+  // currently no active goal but a previous session left a goal id behind,
+  // reconcile it now - this is what lets a screen other than the Tracker
+  // discover "bought for you automatically" even if nothing was open live
+  // to watch the countdown resolve.
+  const reconciledForAccountId = useRef<string | null>(null);
+  useEffect(() => {
+    if (!account) return;
+    if (reconciledForAccountId.current === account.id) return;
+    reconciledForAccountId.current = account.id;
+    let cancelled = false;
+    api
+      .getActiveKapookGoal(account.id)
+      .then((g) => {
+        if (!cancelled) reportGoalObservation(g);
+      })
+      .catch(() => {
+        // Best-effort; leaves reconciledForAccountId set rather than
+        // retrying immediately - a real fetch failure here shouldn't spin.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [account, reportGoalObservation]);
 
   const value = useMemo<KapookContextValue>(
     () => ({
       state: { ...state, account, termsAccepted },
       freeWithdrawalsRemaining: freeWithdrawalsRemaining(state),
-      msUntilAutoPurchase: state.goal?.goalReachedAt ? msUntilAutoPurchase(state.goal.goalReachedAt) : null,
       acceptTerms,
       createGoal,
       deposit,
       withdraw,
       confirmGoalPurchase,
+      reportGoalObservation,
       dismissAutoPurchaseNotice,
       hideSalakSuggestionForever,
     }),
@@ -401,6 +446,7 @@ export function KapookProvider({ children }: { children: ReactNode }) {
       createGoal,
       deposit,
       withdraw,
+      reportGoalObservation,
       confirmGoalPurchase,
       dismissAutoPurchaseNotice,
       hideSalakSuggestionForever,
