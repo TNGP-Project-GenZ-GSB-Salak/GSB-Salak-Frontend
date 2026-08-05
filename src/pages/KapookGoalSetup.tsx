@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ChangeEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
 import type { SalakProduct } from "../lib/types";
 import { formatTHB } from "../lib/format";
 import { AppShell } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
-import { BottomSheet } from "../components/BottomSheet";
-import { Keypad } from "../components/Keypad";
 import { Button } from "../components/Button";
 import { useKapook } from "../context/KapookContext";
 import { messageForError } from "../lib/kapookErrorMessages";
@@ -28,8 +27,7 @@ export function KapookGoalSetup() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [amount, setAmount] = useState<number | null>(null);
-  const [keypadOpen, setKeypadOpen] = useState(false);
-  const [keypadInput, setKeypadInput] = useState("");
+  const [editingCustom, setEditingCustom] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,10 +67,13 @@ export function KapookGoalSetup() {
 
   const confirmDisabled = !amount || !product;
 
-  function keypadConfirm() {
-    setAmount(parseInt(keypadInput || "0", 10) || null);
-    setKeypadInput("");
-    setKeypadOpen(false);
+  // Real device keyboard instead of a custom on-screen digit grid — avoids
+  // the grid's small tap targets mis-registering when the page scrolls
+  // while it's open. No live rounding-to-1,000 enforcement here, matching
+  // the previous keypad flow — the subText below is advisory copy only.
+  function handleCustomAmountChange(e: ChangeEvent<HTMLInputElement>) {
+    const digits = e.target.value.replace(/\D/g, "").slice(0, 9);
+    setAmount(digits ? parseInt(digits, 10) : null);
   }
 
   return (
@@ -99,15 +100,34 @@ export function KapookGoalSetup() {
               {value.toLocaleString("en-US")} บาท
             </button>
           ))}
-          <button
-            type="button"
-            className={`goal-list__item ${amount !== null && !PRESET_AMOUNTS.includes(amount) ? "goal-list__item--selected" : ""}`}
-            onClick={() => setKeypadOpen(true)}
-            data-testid="goal-amount-custom"
-          >
-            กำหนดเอง
-          </button>
+          {editingCustom ? (
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              enterKeyHint="done"
+              maxLength={9}
+              autoComplete="off"
+              autoFocus
+              className="goal-list__item goal-list__item--selected"
+              placeholder="กำหนดเอง"
+              value={amount !== null && !PRESET_AMOUNTS.includes(amount) ? String(amount) : ""}
+              onChange={handleCustomAmountChange}
+              onBlur={() => setEditingCustom(false)}
+              data-testid="goal-amount-custom-input"
+            />
+          ) : (
+            <button
+              type="button"
+              className={`goal-list__item ${amount !== null && !PRESET_AMOUNTS.includes(amount) ? "goal-list__item--selected" : ""}`}
+              onClick={() => setEditingCustom(true)}
+              data-testid="goal-amount-custom"
+            >
+              {amount !== null && !PRESET_AMOUNTS.includes(amount) ? `${formatTHB(amount)} บาท` : "กำหนดเอง"}
+            </button>
+          )}
         </div>
+        <p className="text-muted mt-2">ต้องเป็นจำนวนที่หารด้วย 1,000 บาทลงตัว</p>
 
         <div className="mt-4">
           {error && (
@@ -120,18 +140,6 @@ export function KapookGoalSetup() {
           </Button>
         </div>
       </div>
-
-      <BottomSheet open={keypadOpen} onClose={() => setKeypadOpen(false)}>
-        <Keypad
-          title="กำหนดจำนวนเงินเป้าหมาย"
-          subText="ต้องเป็นจำนวนที่หารด้วย 1,000 บาทลงตัว"
-          display={keypadInput ? Number(keypadInput).toLocaleString("en-US") : "0"}
-          onDigit={(d) => setKeypadInput((prev) => (prev + d).slice(0, 9))}
-          onDelete={() => setKeypadInput((prev) => prev.slice(0, -1))}
-          onCancel={() => setKeypadOpen(false)}
-          onConfirm={keypadConfirm}
-        />
-      </BottomSheet>
     </AppShell>
   );
 }
