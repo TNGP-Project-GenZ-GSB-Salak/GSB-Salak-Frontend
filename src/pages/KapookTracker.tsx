@@ -269,7 +269,14 @@ export function KapookTracker() {
 
           {goal.target_reached && goal.countdown_remaining_seconds !== undefined && (
             <div className="kapook-countdown-box">
-              {processing ? (
+              {goal.auto_purchase_deferred_until ? (
+                <p className="kapook-countdown-box__value" data-testid="auto-purchase-deferred">
+                  ไม่สามารถซื้อสลากอัตโนมัติได้ในวันนี้
+                  <br />
+                  เนื่องจากเป็นวันออกรางวัล จะดำเนินการซื้อให้อัตโนมัติใหม่ในวันที่{" "}
+                  {formatDate(goal.auto_purchase_deferred_until)}
+                </p>
+              ) : processing ? (
                 <p className="kapook-countdown-box__value" data-testid="auto-purchase-processing">
                   กำลังดำเนินการซื้อสลากให้คุณอัตโนมัติ... ⏳
                 </p>

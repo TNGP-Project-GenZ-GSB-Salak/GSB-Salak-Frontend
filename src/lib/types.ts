@@ -88,6 +88,10 @@ export interface KapookGoalResponse {
   salak_amount: string;
   is_active: boolean;
   goal_reached_at?: string;
+  // Set only once the worker has actually hit a draw-day rejection for this
+  // goal - absent on the very first tick after the countdown expires,
+  // before anything knows which case this is.
+  auto_purchase_deferred_until?: string;
   created_at: string;
   available_balance: string;
   target_reached: boolean;
