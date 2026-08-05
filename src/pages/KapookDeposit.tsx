@@ -2,9 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, SVGProps } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
-import type { Account } from "../lib/types";
+import type { Account, KapookGoalResponse } from "../lib/types";
 import { formatTHB, maskAccountNumber } from "../lib/format";
-import { computeAvailableBalance, cumulativeCommitted } from "../lib/kapookStore";
 import { AppShell } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
 import { BottomSheet } from "../components/BottomSheet";
@@ -35,6 +34,8 @@ export function KapookDeposit() {
   const [amount, setAmount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // undefined while loading, null once fetched if there's no active goal.
+  const [goal, setGoal] = useState<KapookGoalResponse | null | undefined>(undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,15 +57,27 @@ export function KapookDeposit() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!state.account) return;
+    let cancelled = false;
+    api
+      .getActiveKapookGoal(state.account.id)
+      .then((g) => !cancelled && setGoal(g))
+      .catch((err) => !cancelled && setLoadError(messageForError(err, "โหลดข้อมูลไม่สำเร็จ")));
+    return () => {
+      cancelled = true;
+    };
+  }, [state.account]);
+
   const sourceAccount = useMemo(
     () => accounts?.find((a) => a.id === sourceAccountId) ?? null,
     [accounts, sourceAccountId],
   );
 
-  if (!state.goal) return <Navigate to="/kapook" replace />;
-  const goal = state.goal;
-  const remainingToTarget = Math.max(0, goal.targetAmount - cumulativeCommitted(goal));
-  const availableBalance = sourceAccount ? computeAvailableBalance(Number(sourceAccount.balance), goal) : 0;
+  if (goal === undefined) return null;
+  if (!goal) return <Navigate to="/kapook" replace />;
+  const remainingToTarget = Math.max(0, Number(goal.goal_amount) - Number(goal.saving_amount));
+  const availableBalance = sourceAccount ? Math.max(0, Number(sourceAccount.balance) - Number(goal.available_balance)) : 0;
   const depositCap = Math.min(remainingToTarget, availableBalance);
   const cappedByBalance = availableBalance < remainingToTarget;
   const canSend = amount > 0 && amount <= depositCap;
@@ -128,7 +141,7 @@ export function KapookDeposit() {
                 <p className="gradient-card__label">{state.account?.accountNumber ?? ""}</p>
                 <p className="gradient-card__meta mt-1">บัญชีกระปุกออมสลาก</p>
               </div>
-              <p className="gradient-card__balance">฿{formatTHB(goal.availableBalance)}</p>
+              <p className="gradient-card__balance">฿{formatTHB(goal.available_balance)}</p>
             </div>
           </div>
 
@@ -196,7 +209,9 @@ export function KapookDeposit() {
                   <p className="account-picker-row__name">บัญชีเงินฝากเผื่อเรียก</p>
                   <p className="account-picker-row__mask">{maskAccountNumber(a.account_number)}</p>
                 </div>
-                <p className="account-picker-row__balance">฿{formatTHB(computeAvailableBalance(Number(a.balance), goal))}</p>
+                <p className="account-picker-row__balance">
+                  ฿{formatTHB(Math.max(0, Number(a.balance) - Number(goal.available_balance)))}
+                </p>
               </button>
             ))}
           </div>

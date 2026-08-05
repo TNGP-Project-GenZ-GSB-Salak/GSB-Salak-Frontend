@@ -15,11 +15,10 @@ type SheetKind = "detail" | "mode" | "piggyExists" | null;
 // Matches the prototype's "buyList" screen: a plain list of products, a
 // detail bottom-sheet ("รายละเอียดเพิ่มเติม"), and a mode-choose bottom-sheet
 // ("ซื้อเลย" / "ออมก่อน" / "ยกเลิก"). "ออมก่อน" enters the Kapook goal-saving loop
-// (see src/context/KapookContext.tsx) — the mock account/goal live entirely
-// client-side, so this doesn't touch the real buy-salak flow below it.
-// prompt/README.md §One piggy at a time: a user may have at most one open
-// goal across all products — tapping "ออมก่อน" again shows the "piggy
-// exists" modal instead of goal setup.
+// (see src/context/KapookContext.tsx) — a real, server-backed goal, not the
+// real buy-salak flow below it. prompt/README.md §One piggy at a time: a
+// user may have at most one open goal across all products — tapping
+// "ออมก่อน" again shows the "piggy exists" modal instead of goal setup.
 export function SalakBuyList() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -28,6 +27,7 @@ export function SalakBuyList() {
   const [error, setError] = useState<string | null>(null);
   const [sheet, setSheet] = useState<SheetKind>(null);
   const [activeProductId, setActiveProductId] = useState<string | null>(null);
+  const [hasActiveGoal, setHasActiveGoal] = useState(false);
 
   // Reused from more than one entry point (Salak.tsx's "ซื้อสลาก" quick
   // action, and Accounts.tsx's piggy-account row) — each expects the close
@@ -46,6 +46,18 @@ export function SalakBuyList() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!kapookState.account) return;
+    let cancelled = false;
+    api
+      .getActiveKapookGoal(kapookState.account.id)
+      .then((g) => !cancelled && setHasActiveGoal(!!g))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [kapookState.account]);
 
   const activeProduct = products?.find((p) => p.id === activeProductId) ?? null;
 
@@ -70,7 +82,7 @@ export function SalakBuyList() {
 
   function chooseSaveFirst() {
     if (!activeProductId) return;
-    if (kapookState.goal) {
+    if (hasActiveGoal) {
       setSheet("piggyExists");
       return;
     }

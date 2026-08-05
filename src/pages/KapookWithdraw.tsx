@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
-import type { Account, KapookWithdrawalStatusResponse } from "../lib/types";
+import type { Account, KapookGoalResponse, KapookWithdrawalStatusResponse } from "../lib/types";
 import { formatTHB, formatDate, maskAccountNumber } from "../lib/format";
 import { findPrimaryAccount } from "../lib/accounts";
 import { AppShell } from "../components/AppShell";
@@ -48,6 +48,13 @@ export function KapookWithdraw() {
   const [successNet, setSuccessNet] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // undefined while loading, null once fetched if there's no active goal.
+  const [goal, setGoal] = useState<KapookGoalResponse | null | undefined>(undefined);
+  // Frozen at confirm time from the withdraw response's own goal.is_active -
+  // whether the finished withdrawal also emptied and closed the goal, so
+  // the success screen's "เสร็จสิ้น" button knows where to send the customer
+  // without depending on `goal` (which the next fetch would set to null).
+  const [goalStillActiveAfterWithdraw, setGoalStillActiveAfterWithdraw] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -89,11 +96,23 @@ export function KapookWithdraw() {
     };
   }, [state.account]);
 
-  const forcedFull = !!state.goal?.goalReachedAt;
+  useEffect(() => {
+    if (!state.account) return;
+    let cancelled = false;
+    api
+      .getActiveKapookGoal(state.account.id)
+      .then((g) => !cancelled && setGoal(g))
+      .catch((err) => !cancelled && setLoadError(messageForError(err, "โหลดข้อมูลไม่สำเร็จ")));
+    return () => {
+      cancelled = true;
+    };
+  }, [state.account]);
+
+  const forcedFull = !!goal?.goal_reached_at;
 
   useEffect(() => {
-    if (forcedFull && state.goal) setAmount(state.goal.availableBalance);
-  }, [forcedFull, state.goal]);
+    if (forcedFull && goal) setAmount(Number(goal.available_balance));
+  }, [forcedFull, goal]);
 
   // Free-withdrawal count *before* this pending withdrawal — drives the
   // confirm modal's badge/warning copy (prompt/prototype-reference.html's
@@ -108,12 +127,13 @@ export function KapookWithdraw() {
     : "ใช้สิทธิ์ถอนฟรีหมดแล้ว ครั้งต่อไปจะเสียค่าธรรมเนียม 2%";
   const badgeText = remainingBefore !== null ? `เหลือสิทธิ์ถอนฟรี: ${Math.max(0, remainingBefore - 1)} ครั้ง/ปี` : "";
 
-  // A full withdrawal that also empties the goal closes it (state.goal
-  // becomes null) as soon as the context updates — but the user still needs
-  // to see the success receipt. Only redirect away before that point.
-  if (!state.goal && step !== "success") return <Navigate to="/kapook" replace />;
-  const goal = state.goal;
-  const canWithdraw = !!goal && amount > 0 && amount <= goal.availableBalance && !noPrimaryAccount;
+  if (goal === undefined && step !== "success") return null;
+  // A full withdrawal that also empties the goal closes it as soon as the
+  // next fetch would report it gone — but the user still needs to see the
+  // success receipt. Only redirect away before that point.
+  if (!goal && step !== "success") return <Navigate to="/kapook" replace />;
+  const availableBalance = goal ? Number(goal.available_balance) : 0;
+  const canWithdraw = !!goal && amount > 0 && amount <= availableBalance && !noPrimaryAccount;
 
   // Real device keyboard instead of a custom on-screen digit grid — avoids
   // the grid's small tap targets mis-registering when the page scrolls
@@ -121,7 +141,7 @@ export function KapookWithdraw() {
   function handleAmountChange(e: ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/\D/g, "").slice(0, 9);
     const n = digits ? parseInt(digits, 10) : 0;
-    setAmount(Math.min(n, goal?.availableBalance ?? 0));
+    setAmount(Math.min(n, availableBalance));
   }
 
   async function handleFinalConfirm() {
@@ -132,6 +152,7 @@ export function KapookWithdraw() {
       // what was actually charged, never recomputed client-side.
       setSuccessFee(Number(response.fee_amount));
       setSuccessNet(Number(response.net_credited));
+      setGoalStillActiveAfterWithdraw(response.goal.is_active);
       setSuccessAt(new Date().toISOString());
       setConfirmOpen(false);
       setStep("success");
@@ -157,7 +178,7 @@ export function KapookWithdraw() {
                   <p className="gradient-card__label">บัญชีกระปุกออมสลาก</p>
                   <p className="gradient-card__meta mt-1">{state.account?.accountNumber ?? ""}</p>
                 </div>
-                <p className="gradient-card__balance mt-1">฿{formatTHB(goal?.availableBalance ?? 0)}</p>
+                <p className="gradient-card__balance mt-1">฿{formatTHB(availableBalance)}</p>
               </div>
             </div>
 
@@ -202,7 +223,7 @@ export function KapookWithdraw() {
                 </span>
               )}
             </label>
-            <p className="text-muted text-center">ถอนได้สูงสุด ฿{formatTHB(goal?.availableBalance ?? 0)}</p>
+            <p className="text-muted text-center">ถอนได้สูงสุด ฿{formatTHB(availableBalance)}</p>
             {forcedFull && (
               <p className="text-muted text-center">ถอนเต็มจำนวนเนื่องจากอยู่ในช่วงนับถอยหลังซื้อสลากอัตโนมัติ</p>
             )}
@@ -235,7 +256,7 @@ export function KapookWithdraw() {
           )}
           <p className="text-muted">{successAt ? formatDate(successAt) : ""}</p>
           <div className="mt-5 w-full">
-            <Button onClick={() => navigate(state.goal ? "/kapook" : "/salak")}>เสร็จสิ้น</Button>
+            <Button onClick={() => navigate(goalStillActiveAfterWithdraw ? "/kapook" : "/salak")}>เสร็จสิ้น</Button>
           </div>
         </div>
       )}

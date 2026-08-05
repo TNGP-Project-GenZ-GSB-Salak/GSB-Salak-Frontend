@@ -2,7 +2,7 @@ import { useEffect, useState, type SVGProps } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
 import type { Account, Holding, KapookGoalResponse, SalakProduct } from "../lib/types";
-import { formatTHB, maskAccountNumber } from "../lib/format";
+import { formatTHB, maskAccountNumber, progressPct } from "../lib/format";
 import { useKapook } from "../context/KapookContext";
 import { AppShell } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
@@ -84,7 +84,7 @@ export function Salak() {
   const goalProduct = goal ? products?.find((p) => p.id === goal.product_id) : null;
   const goalSaved = goal ? Number(goal.saving_amount) : 0;
   const goalTarget = goal ? Number(goal.goal_amount) : 0;
-  const goalProgressPct = goalTarget > 0 ? Math.min(100, Math.round((goalSaved / goalTarget) * 100)) : 0;
+  const goalProgressPct = progressPct(goalSaved, goalTarget);
 
   return (
     <AppShell>

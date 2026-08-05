@@ -153,13 +153,9 @@ export interface KapookBuyFromGoalResponse {
 }
 
 // Hand-mirrors internal/kapook/http/dto.go's kapookTransactionResponse
-// verbatim - the five real database values (matching
-// internal/kapook/domain/transaction.go's TransactionType), not the four-
-// value local-fiction union in lib/kapookTypes.ts, which this doesn't
-// replace (that module is a separate client-only store, deleted whole in a
-// later ticket). fee_amount/net_amount are server-computed, never
-// recomputed client-side. is_automatic_purchase is undefined for every row
-// until a later ticket's worker starts populating it.
+// verbatim - the five real database values, matching
+// internal/kapook/domain/transaction.go's TransactionType. fee_amount/
+// net_amount are server-computed, never recomputed client-side.
 export type KapookTransactionKind = "deposit" | "withdraw" | "withdraw_with_fee" | "buy_salak" | "salak_expiration";
 
 export interface KapookTransactionResponse {

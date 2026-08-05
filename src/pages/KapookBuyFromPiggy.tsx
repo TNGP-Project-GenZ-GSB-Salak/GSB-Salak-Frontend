@@ -66,10 +66,9 @@ export function KapookBuyFromPiggy() {
   const [product, setProduct] = useState<SalakProduct | null>(null);
   const [salakAccount, setSalakAccount] = useState<Account | null>(null);
   // The server-fed goal snapshot (GET /kapook/goals/active) - same read
-  // model KapookTracker.tsx uses - is the source of truth for
-  // available_balance/buy_eligible here, not state.goal's local-fiction
-  // numbers (which only get refreshed by this screen's own purchase, not by
-  // deposit/withdraw). undefined = still loading.
+  // model KapookTracker.tsx uses - is the sole source of truth for the
+  // goal itself, its available_balance, and its buy_eligible flag here.
+  // undefined = still loading.
   const [serverGoal, setServerGoal] = useState<KapookGoalResponse | null | undefined>(undefined);
   const [step, setStep] = useState<Step>("amount");
   const [amount, setAmount] = useState(0);
@@ -81,9 +80,9 @@ export function KapookBuyFromPiggy() {
   const [successAt, setSuccessAt] = useState<Date | null>(null);
 
   useEffect(() => {
-    if (!state.goal) return;
+    if (!serverGoal) return;
     let cancelled = false;
-    Promise.all([api.getSalakProduct(state.goal.productId), api.listAccounts()]).then(([productData, accounts]) => {
+    Promise.all([api.getSalakProduct(serverGoal.product_id), api.listAccounts()]).then(([productData, accounts]) => {
       if (cancelled) return;
       setProduct(productData);
       setSalakAccount(accounts.find((a) => a.type === "salak") ?? null);
@@ -91,7 +90,7 @@ export function KapookBuyFromPiggy() {
     return () => {
       cancelled = true;
     };
-  }, [state.goal?.productId]);
+  }, [serverGoal?.product_id]);
 
   useEffect(() => {
     if (!state.account) return;
@@ -108,12 +107,12 @@ export function KapookBuyFromPiggy() {
     setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
   }
 
+  if (serverGoal === undefined && step !== "success") return null;
   // A *full* purchase (amount === availableBalance) that also completes the
-  // target closes the goal (state.goal becomes null) as soon as the context
-  // updates — but the user still needs to see the success receipt for the
-  // purchase that just happened. Only redirect away before that point.
-  if (!state.goal && step !== "success") return <Navigate to="/kapook" replace />;
-  const goal = state.goal;
+  // target closes the goal as soon as the next fetch would report it gone
+  // — but the user still needs to see the success receipt for the purchase
+  // that just happened. Only redirect away before that point.
+  if (!serverGoal && step !== "success") return <Navigate to="/kapook" replace />;
   // available_balance and buy_eligible come from the server's own goal
   // snapshot (GoalSnapshot, same read model KapookTracker.tsx uses) - not
   // recomputed client-side. Coerced to Number only for display/capping, the
@@ -123,8 +122,7 @@ export function KapookBuyFromPiggy() {
   // NOT silently rounded down — it's validated, and "เลื่อนเพื่อส่ง" stays
   // disabled with an error message until it's an exact multiple of ฿1,000.
   const notMultipleOf1000 = amount > 0 && amount % 1000 !== 0;
-  const canSend =
-    !!goal && !!serverGoal?.buy_eligible && amount > 0 && amount <= availableBalance && !notMultipleOf1000;
+  const canSend = !!serverGoal?.buy_eligible && amount > 0 && amount <= availableBalance && !notMultipleOf1000;
   const units = product ? Math.floor(amount / Number(product.unit_price)) : 0;
 
   // Real device keyboard instead of a custom on-screen digit grid — avoids

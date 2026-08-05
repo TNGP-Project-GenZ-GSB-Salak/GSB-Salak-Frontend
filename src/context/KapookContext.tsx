@@ -13,46 +13,40 @@ import type { KapookBuyFromGoalResponse, KapookGoalResponse, KapookWithdrawRespo
 import { findPrimaryAccount } from "../lib/accounts";
 import { NO_PRIMARY_ACCOUNT_MESSAGE } from "../lib/kapookErrorMessages";
 import { hasAtMostTwoDecimals } from "../lib/moneyValidation";
-import { freeWithdrawalsRemaining, generateId, loadState, saveState } from "../lib/kapookStore";
-import type { KapookAccountInfo, KapookGoal, KapookState, KapookTransaction } from "../lib/kapookTypes";
-import { emptyKapookState } from "../lib/kapookTypes";
+import { emptyPreferences, loadPreferences, savePreferences, type KapookPreferences } from "../lib/kapookPreferences";
 import { useAuth } from "./AuthContext";
 
-// The persisted fiction (goal/transactions/etc.) plus the two facts that are
-// already real and server-backed - the kapook account itself and terms
-// acceptance - neither of which is ever written to localStorage; both are
-// fetched fresh each session so acceptance survives a reload and shows up on
-// another device.
-interface KapookContextState extends KapookState {
+export interface KapookAccountInfo {
+  id: string;
+  accountNumber: string;
+  openedAt: string;
+}
+
+// Everything Kapook-related is now server-backed except the small
+// browser-only preferences in kapookPreferences.ts - the goal, its
+// balances, and its transaction history are always fetched fresh from the
+// API by whichever screen needs them, never cached in this context.
+interface KapookContextState {
   account: KapookAccountInfo | null;
-  // null only while the initial fetch is in flight - never persisted, and
-  // never assumed true just because an account exists (every registered
-  // user has a kapook account; not every one has accepted the terms).
+  // null only while the initial fetch is in flight.
   termsAccepted: boolean | null;
+  autoPurchaseNotice: number | null;
+  hideSalakSuggestion: boolean;
 }
 
 interface KapookContextValue {
   state: KapookContextState;
-  freeWithdrawalsRemaining: number;
   // Records the customer's acceptance with the bank (POST
   // /kapook/terms/accept). Takes no KYC data - the wizard's identity steps
   // are review-only theatre; nothing they display is ever transmitted.
   acceptTerms: () => Promise<void>;
-  // Persists the goal server-side (POST /kapook/goals) - the goal itself is
-  // now real and survives a reload. Also still writes the local fiction
-  // goal deposit/buy-from-piggy read (withdraw is real now too - see its own
-  // doc comment below), until their own tickets move them onto the real
-  // backend too; expect the two to disagree in the meantime (a deliberate,
-  // temporary inconsistency - see the goal-creation ticket's own notes).
+  // Persists the goal server-side (POST /kapook/goals).
   createGoal: (targetAmount: number, productId: string) => Promise<void>;
-  // Real, server-backed (POST /kapook/goals/deposit) - debits savingsAccountId
-  // and credits the kapook account atomically, then folds the server's own
-  // read-model snapshot (available_balance, salak_amount, target_reached,
-  // buy_eligible, ...) into the local goal rather than recomputing any of it
-  // client-side. Returns whether this specific deposit just reached the
-  // target and/or should surface the once-per-goal "buy Salak now"
-  // suggestion, so the caller can drive its own celebrate/sheet state without
-  // re-deriving either from raw balances.
+  // POST /kapook/goals/deposit - debits savingsAccountId and credits the
+  // kapook account atomically. Returns whether this specific deposit just
+  // reached the target and/or should surface the once-per-goal "buy Salak
+  // now" suggestion, so the caller can drive its own celebrate/sheet state
+  // without re-deriving either from raw balances.
   deposit: (
     savingsAccountId: string,
     amount: number,
@@ -65,11 +59,10 @@ interface KapookContextValue {
    * primary. Returns the server's response so the caller can display the
    * server-computed fee/net-credited without any client-side money math. */
   withdraw: (amount: number) => Promise<KapookWithdrawResponse>;
-  /** Buys Salak using `amount` from the piggy (defaults to the entire saved
-   * balance, for the system-triggered auto-purchase path). Funded from the
-   * kapook account itself via POST /kapook/goals/buy - NOT the public
-   * buy-Salak endpoint. */
-  confirmGoalPurchase: (amount?: number) => Promise<KapookBuyFromGoalResponse>;
+  /** Buys Salak using `amount` from the piggy. Funded from the kapook
+   * account itself via POST /kapook/goals/buy - NOT the public buy-Salak
+   * endpoint. */
+  confirmGoalPurchase: (amount: number) => Promise<KapookBuyFromGoalResponse>;
   /** Feeds the auto-purchase-notice reconciliation a just-fetched real goal
    * (or null) - called both by this context's own once-per-account check
    * and by KapookTracker's live polling, so either whichever screen is
@@ -89,44 +82,25 @@ interface KapookContextValue {
 
 const KapookContext = createContext<KapookContextValue | undefined>(undefined);
 
-function pushTransaction(
-  state: KapookState,
-  goalId: string,
-  type: KapookTransaction["type"],
-  amount: number,
-  feeAmount: number,
-): KapookState {
-  const txn: KapookTransaction = {
-    id: generateId(),
-    goalId,
-    type,
-    amount,
-    feeAmount,
-    createdAt: new Date().toISOString(),
-  };
-  return { ...state, transactions: [txn, ...state.transactions] };
-}
-
 export function KapookProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id ?? null;
-  // Lazy-initialize from localStorage synchronously on first render (mirroring
-  // AuthContext's own pattern) rather than starting empty and loading in a
-  // useEffect — a direct navigation/refresh straight to a Kapook sub-route
-  // (e.g. /kapook/withdraw) would otherwise see one render with `goal: null`
-  // before the effect populates it, tripping that page's own
-  // `if (!state.goal) return <Navigate ... />` guard and bouncing away
-  // permanently before the real state ever loads.
-  const [state, setState] = useState<KapookState>(() => (userId ? loadState(userId) : emptyKapookState()));
+  const [preferences, setPreferences] = useState<KapookPreferences>(() =>
+    userId ? loadPreferences(userId) : emptyPreferences(),
+  );
   const [account, setAccount] = useState<KapookAccountInfo | null>(null);
   const [termsAccepted, setTermsAccepted] = useState<boolean | null>(null);
   const loadedForUserId = useRef(userId);
   const purchaseInFlight = useRef(false);
+  // Always the latest preferences, readable from inside a callback without
+  // being one of its dependencies.
+  const preferencesRef = useRef(preferences);
+  preferencesRef.current = preferences;
 
   useEffect(() => {
     if (userId === loadedForUserId.current) return;
     loadedForUserId.current = userId;
-    setState(userId ? loadState(userId) : emptyKapookState());
+    setPreferences(userId ? loadPreferences(userId) : emptyPreferences());
   }, [userId]);
 
   // The kapook account and terms acceptance are real - fetched from the
@@ -157,9 +131,9 @@ export function KapookProvider({ children }: { children: ReactNode }) {
   }, [userId]);
 
   const persist = useCallback(
-    (next: KapookState) => {
-      setState(next);
-      if (userId) saveState(userId, next);
+    (next: KapookPreferences) => {
+      setPreferences(next);
+      if (userId) savePreferences(userId, next);
     },
     [userId],
   );
@@ -177,28 +151,12 @@ export function KapookProvider({ children }: { children: ReactNode }) {
         product_id: productId,
         goal_amount: String(targetAmount),
       });
-      persist({
-        ...state,
-        goal: {
-          id: generateId(),
-          productId,
-          targetAmount,
-          availableBalance: 0,
-          purchasedAmount: 0,
-          purchasedUnits: 0,
-          purchasedCount: 0,
-          createdAt: new Date().toISOString(),
-          goalReachedAt: null,
-          salakSuggestionSeen: false,
-        },
-      });
     },
-    [state, persist, account],
+    [account],
   );
 
   const deposit = useCallback(
     async (savingsAccountId: string, amount: number) => {
-      if (!state.goal) throw new Error("ไม่พบเป้าหมายการออม");
       if (!account) throw new Error("ไม่พบบัญชีกระปุกออมสลาก");
       if (amount <= 0) throw new Error("จำนวนเงินไม่ถูกต้อง");
       // Client-side only - the backend has no equivalent check (its decimal
@@ -213,31 +171,21 @@ export function KapookProvider({ children }: { children: ReactNode }) {
         savings_account_id: savingsAccountId,
         amount: amountStr,
       });
-      // Folded straight from the server's own read-model snapshot - no
-      // client-side recomputation of available_balance/salak_amount/etc.
-      const goal: KapookGoal = {
-        ...state.goal,
-        targetAmount: Number(response.goal_amount),
-        availableBalance: Number(response.available_balance),
-        purchasedAmount: Number(response.salak_amount),
-        purchasedUnits: response.purchased_units,
-        purchasedCount: response.purchased_count,
-        goalReachedAt: response.goal_reached_at ?? null,
-      };
+
       // buy_eligible is the server's own flag (real product min-purchase
-      // comparison, not a client-guessed threshold) - salakSuggestionSeen
-      // already guarantees this only ever flips once per goal, regardless
-      // of how many deposits later re-cross the same line.
-      const showSalakSuggestion = !state.hideSalakSuggestion && !goal.salakSuggestionSeen && response.buy_eligible;
+      // comparison, not a client-guessed threshold); seenSuggestionGoalIds
+      // guarantees this only ever fires once per goal, regardless of how
+      // many deposits later re-cross the same line.
+      const current = preferencesRef.current;
+      const alreadySeen = current.seenSuggestionGoalIds.includes(response.id);
+      const showSalakSuggestion = !current.hideSalakSuggestion && !alreadySeen && response.buy_eligible;
       if (showSalakSuggestion) {
-        goal.salakSuggestionSeen = true;
+        persist({ ...current, seenSuggestionGoalIds: [...current.seenSuggestionGoalIds, response.id] });
       }
-      let next: KapookState = { ...state, goal };
-      next = pushTransaction(next, goal.id, "deposit", amount, 0);
-      persist(next);
+
       return { justReachedGoal: response.target_reached, showSalakSuggestion };
     },
-    [state, persist, account],
+    [account, persist],
   );
 
   // prompt/README.md: fee/quota apply uniformly to every withdrawal — there is
@@ -245,18 +193,16 @@ export function KapookProvider({ children }: { children: ReactNode }) {
   // forces `amount` to the full saved balance (see KapookWithdraw.tsx); this
   // action doesn't need to know that's why the number is what it is.
   //
-  // Real backend call (POST /kapook/goals/withdraw) — unlike deposit, this
-  // is no longer local fiction. The destination is always the caller's own
-  // primary account (บัญชีคู่โอน), resolved server-side now - the backend
-  // dropped savings_account_id from the request entirely, so there's
-  // nothing to pass even if something upstream wanted to. The primary-
-  // account lookup below exists only to fail loudly client-side before
-  // making the request at all (console.error + a support-contact message)
-  // instead of guessing the sole savings account, even though that guess is
-  // unambiguous today; the backend enforces the same check independently.
+  // The destination is always the caller's own primary account (บัญชีคู่โอน),
+  // resolved server-side - the backend dropped savings_account_id from the
+  // request entirely, so there's nothing to pass even if something upstream
+  // wanted to. The primary-account lookup below exists only to fail loudly
+  // client-side before making the request at all (console.error + a
+  // support-contact message) instead of guessing the sole savings account,
+  // even though that guess is unambiguous today; the backend enforces the
+  // same check independently.
   const withdraw = useCallback(
     async (amount: number): Promise<KapookWithdrawResponse> => {
-      if (!state.goal) throw new Error("ไม่พบเป้าหมายการออม");
       if (!account) throw new Error("ไม่พบบัญชีกระปุกออมสลาก");
       if (amount <= 0) throw new Error("จำนวนเงินไม่ถูกต้อง");
 
@@ -270,47 +216,19 @@ export function KapookProvider({ children }: { children: ReactNode }) {
         throw new Error(NO_PRIMARY_ACCOUNT_MESSAGE);
       }
 
-      const response = await api.withdrawFromKapook({
-        kapook_account_id: account.id,
-        amount: String(amount),
-      });
-
-      const closesGoal = !response.goal.is_active;
-      const withdrawnGoal: KapookGoal = {
-        ...state.goal,
-        availableBalance: Number(response.goal.available_balance),
-      };
-      let next: KapookState = { ...state, goal: closesGoal ? null : withdrawnGoal };
-      next = pushTransaction(
-        next,
-        state.goal.id,
-        response.fee_charged ? "withdraw_with_fee" : "withdraw",
-        amount,
-        Number(response.fee_amount),
-      );
-      persist(next);
-      return response;
+      return api.withdrawFromKapook({ kapook_account_id: account.id, amount: String(amount) });
     },
-    [state, persist, account, userId],
+    [account, userId],
   );
 
   // Funds the purchase from the kapook account's own real balance (POST
   // /kapook/goals/buy) - deliberately NOT api.buySalak, which stays closed
   // to kapook-type accounts (that endpoint's savings-account path is a
-  // different, separate defect this action does not touch). The goal's
-  // post-purchase shape (availableBalance, purchasedAmount/Units/Count,
-  // goalReachedAt) is copied straight from the server's response - the read
-  // model ticket 05 already built - rather than accumulated from the
-  // pre-purchase local values, and the goal closes only when the server's
-  // own goal_completed flag says so.
+  // different, separate defect this action does not touch).
   const confirmGoalPurchase = useCallback(
-    async (amount?: number): Promise<KapookBuyFromGoalResponse> => {
-      if (!state.goal) throw new Error("ไม่พบเป้าหมายการออม");
+    async (amount: number): Promise<KapookBuyFromGoalResponse> => {
       if (!account) throw new Error("ไม่พบบัญชีกระปุกออมสลาก");
-      const spendAmount = amount ?? state.goal.availableBalance;
-      if (spendAmount <= 0) {
-        throw new Error("จำนวนเงินไม่ถูกต้อง");
-      }
+      if (amount <= 0) throw new Error("จำนวนเงินไม่ถูกต้อง");
       if (purchaseInFlight.current) throw new Error("กำลังทำรายการอยู่");
       purchaseInFlight.current = true;
       try {
@@ -319,46 +237,25 @@ export function KapookProvider({ children }: { children: ReactNode }) {
         if (!salakAccount) {
           throw new Error("ไม่พบบัญชีสลากดิจิทัล");
         }
-        const receipt = await api.buyFromKapookGoal({
+        return await api.buyFromKapookGoal({
           kapook_account_id: account.id,
           salak_account_id: salakAccount.id,
-          amount: String(spendAmount),
+          amount: String(amount),
         });
-        const g = receipt.goal;
-        const purchased: KapookGoal = {
-          ...state.goal,
-          availableBalance: Number(g.available_balance),
-          purchasedAmount: Number(g.salak_amount),
-          purchasedUnits: g.purchased_units,
-          purchasedCount: g.purchased_count,
-          goalReachedAt: g.goal_reached_at ?? null,
-        };
-        const goal = receipt.goal_completed ? null : purchased;
-        let next: KapookState = { ...state, goal };
-        next = pushTransaction(next, state.goal.id, "buy_salak", spendAmount, 0);
-        persist(next);
-        return receipt;
       } finally {
         purchaseInFlight.current = false;
       }
     },
-    [state, persist, account],
+    [account],
   );
 
   const dismissAutoPurchaseNotice = useCallback(() => {
-    persist({ ...state, autoPurchaseNotice: null });
-  }, [state, persist]);
+    persist({ ...preferencesRef.current, autoPurchaseNotice: null });
+  }, [persist]);
 
   const hideSalakSuggestionForever = useCallback(() => {
-    persist({ ...state, hideSalakSuggestion: true });
-  }, [state, persist]);
-
-  // Always the latest state, readable from inside a callback without being
-  // one of its dependencies - reportGoalObservation below needs the
-  // *current* lastKnownGoalId at call time, not the value captured whenever
-  // the callback itself was last recreated.
-  const stateRef = useRef(state);
-  stateRef.current = state;
+    persist({ ...preferencesRef.current, hideSalakSuggestion: true });
+  }, [persist]);
 
   // The browser no longer performs the purchase itself - the real one only
   // ever happens server-side (the worker), so this is discovery, not
@@ -371,33 +268,30 @@ export function KapookProvider({ children }: { children: ReactNode }) {
   const reportGoalObservation = useCallback(
     (observedGoal: KapookGoalResponse | null) => {
       if (observedGoal) {
-        if (stateRef.current.lastKnownGoalId === observedGoal.id) return;
-        persist({ ...stateRef.current, lastKnownGoalId: observedGoal.id });
+        if (preferencesRef.current.lastKnownGoalId === observedGoal.id) return;
+        persist({ ...preferencesRef.current, lastKnownGoalId: observedGoal.id });
         return;
       }
 
-      const closedGoalId = stateRef.current.lastKnownGoalId;
+      const closedGoalId = preferencesRef.current.lastKnownGoalId;
       if (!closedGoalId) return;
       void api
         .listKapookGoalHistory(closedGoalId, { limit: 5 })
         .then((history) => {
           const lastPurchase = history.find((t) => t.type === "buy_salak");
-          setState((prev) => {
-            if (prev.lastKnownGoalId !== closedGoalId) return prev; // already reconciled elsewhere
-            const next: KapookState = { ...prev, lastKnownGoalId: null };
-            if (lastPurchase?.is_automatic_purchase) {
-              next.autoPurchaseNotice = Number(lastPurchase.amount);
-            }
-            if (userId) saveState(userId, next);
-            return next;
-          });
+          if (preferencesRef.current.lastKnownGoalId !== closedGoalId) return; // already reconciled elsewhere
+          const next: KapookPreferences = { ...preferencesRef.current, lastKnownGoalId: null };
+          if (lastPurchase?.is_automatic_purchase) {
+            next.autoPurchaseNotice = Number(lastPurchase.amount);
+          }
+          persist(next);
         })
         .catch(() => {
           // Best-effort - lastKnownGoalId stays set, so the next observation
           // (this session's next poll, or the next login) retries the check.
         });
     },
-    [persist, userId],
+    [persist],
   );
 
   // Once per signed-in account (not on every render/poll): if there's
@@ -427,8 +321,12 @@ export function KapookProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<KapookContextValue>(
     () => ({
-      state: { ...state, account, termsAccepted },
-      freeWithdrawalsRemaining: freeWithdrawalsRemaining(state),
+      state: {
+        account,
+        termsAccepted,
+        autoPurchaseNotice: preferences.autoPurchaseNotice,
+        hideSalakSuggestion: preferences.hideSalakSuggestion,
+      },
       acceptTerms,
       createGoal,
       deposit,
@@ -439,9 +337,9 @@ export function KapookProvider({ children }: { children: ReactNode }) {
       hideSalakSuggestionForever,
     }),
     [
-      state,
       account,
       termsAccepted,
+      preferences,
       acceptTerms,
       createGoal,
       deposit,

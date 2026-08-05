@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
-import type { Account, SalakProduct } from "../lib/types";
+import type { Account, KapookGoalResponse, SalakProduct } from "../lib/types";
 import { formatTHB } from "../lib/format";
-import { computeAvailableBalance } from "../lib/kapookStore";
 import { useKapook } from "../context/KapookContext";
 import { AppShell } from "../components/AppShell";
 import { AccountCard } from "../components/AccountCard";
@@ -18,16 +17,19 @@ type Segment = "accounts" | "products";
 // Tapping either action here just hands off into the real buy flow (Salak's
 // buy-list screen owns the actual detail sheet / mode-choose sheet).
 //
-// prompt/README.md §20/§Balance accounting: the savings row shows the
-// balance *net of* whatever's reserved in an open Kapook goal, and — once a
-// piggy account has ever been opened — a "กระปุกออมสลาก" row appears too,
-// showing its own saved amount and (while a goal is active) progress.
+// prompt/README.md §20/§Balance accounting: the savings account's own
+// `balance` already excludes whatever's been moved into an open Kapook
+// goal - POST /kapook/goals/deposit debits it server-side at deposit time
+// - so this screen shows it as-is, with no further client-side subtraction.
+// Once a piggy account has ever been opened, a "กระปุกออมสลาก" row appears
+// too, showing its own saved amount (while a goal is active).
 export function Accounts() {
   const navigate = useNavigate();
   const { state: kapookState } = useKapook();
   const [segment, setSegment] = useState<Segment>("accounts");
   const [accounts, setAccounts] = useState<Account[] | null>(null);
   const [products, setProducts] = useState<SalakProduct[] | null>(null);
+  const [goal, setGoal] = useState<KapookGoalResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -42,6 +44,18 @@ export function Accounts() {
   }, []);
 
   useEffect(() => {
+    if (!kapookState.account) return;
+    let cancelled = false;
+    api
+      .getActiveKapookGoal(kapookState.account.id)
+      .then((g) => !cancelled && setGoal(g))
+      .catch((err) => !cancelled && setError(err instanceof Error ? err.message : "โหลดข้อมูลไม่สำเร็จ"));
+    return () => {
+      cancelled = true;
+    };
+  }, [kapookState.account]);
+
+  useEffect(() => {
     if (segment !== "products" || products !== null) return;
     let cancelled = false;
     api
@@ -52,8 +66,6 @@ export function Accounts() {
       cancelled = true;
     };
   }, [segment, products]);
-
-  const goal = kapookState.goal;
 
   return (
     <AppShell>
@@ -80,21 +92,10 @@ export function Accounts() {
             )}
             {/* The kapook-type account is excluded here - registration now opens
                 one for every user (see the account-provisioning ticket), but
-                the piggy card below still renders the client-side fiction, so
-                showing both would duplicate it. Revisit once that card reads
-                the real account instead. */}
+                the piggy card below already shows it. */}
             {accounts
               ?.filter((account) => account.type !== "kapook")
-              .map((account) => (
-                <AccountCard
-                  key={account.id}
-                  account={
-                    account.is_primary_account
-                      ? { ...account, balance: String(computeAvailableBalance(Number(account.balance), goal)) }
-                      : account
-                  }
-                />
-              ))}
+              .map((account) => <AccountCard key={account.id} account={account} />)}
             {kapookState.termsAccepted && (
               <button
                 type="button"
@@ -110,7 +111,7 @@ export function Accounts() {
                   <ArrowIcon />
                 </div>
                 <p className="gradient-card__eyebrow">คงเหลือ</p>
-                <p className="gradient-card__balance">฿{formatTHB(goal?.availableBalance ?? 0)}</p>
+                <p className="gradient-card__balance">฿{formatTHB(goal?.available_balance ?? 0)}</p>
               </button>
             )}
           </>

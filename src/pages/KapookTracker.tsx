@@ -50,20 +50,23 @@ const GOAL_POLL_INTERVAL_MS = 5000;
 // doubles as the countdown bail-out (forced to the full balance there,
 // prompt/README.md §13) — there's no separate action.
 //
-// The goal itself is real (GET /kapook/goals/active), fetched once per visit
-// - not the local fiction in KapookContext's `state.goal`, which
-// deposit/withdraw/buy-from-piggy still read until their own tickets move
-// them onto the real backend. Money fields cross as decimal strings and are
-// coerced to Number only for display (a progress-bar width, a formatted
-// ฿ figure) - never for a value driving a button gate, which come from the
-// server's own flags (target_reached, buy_eligible).
+// The goal itself is real (GET /kapook/goals/active), fetched once per
+// visit - KapookContext holds no goal state of its own anymore. Money
+// fields cross as decimal strings and are coerced to Number only for
+// display (a progress-bar width, a formatted ฿ figure) - never for a value
+// driving a button gate, which come from the server's own flags
+// (target_reached, buy_eligible).
 export function KapookTracker() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { state, freeWithdrawalsRemaining, hideSalakSuggestionForever, reportGoalObservation } = useKapook();
+  const { state, hideSalakSuggestionForever, reportGoalObservation } = useKapook();
   const [products, setProducts] = useState<SalakProduct[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [termsSheetOpen, setTermsSheetOpen] = useState(false);
+  // Fetched once per visit (GET /kapook/goals/withdrawal-status), same
+  // real preview KapookWithdraw.tsx uses - never computed from local
+  // transaction history.
+  const [freeWithdrawalsRemaining, setFreeWithdrawalsRemaining] = useState<number | null>(null);
 
   // undefined = still loading; null = no active goal (a normal empty
   // state, not an error - see GET /kapook/goals/active's 200-with-null
@@ -139,6 +142,18 @@ export function KapookTracker() {
   useEffect(() => {
     loadGoal();
   }, [loadGoal]);
+
+  useEffect(() => {
+    if (!state.account || !goal) return;
+    let cancelled = false;
+    api
+      .getKapookWithdrawalStatus(state.account.id)
+      .then((status) => !cancelled && setFreeWithdrawalsRemaining(status.free_withdrawals_remaining))
+      .catch((err) => !cancelled && setLoadError(messageForError(err, "โหลดข้อมูลไม่สำเร็จ")));
+    return () => {
+      cancelled = true;
+    };
+  }, [state.account, goal?.id]);
 
   // Polls only while a countdown is actually live (running, or expired and
   // waiting on the worker) - never otherwise. Other screens don't poll at
@@ -364,7 +379,7 @@ export function KapookTracker() {
           </button>
         </div>
 
-        <p className="text-muted mt-3">เหลือสิทธิ์ถอนฟรี: {freeWithdrawalsRemaining} ครั้ง</p>
+        <p className="text-muted mt-3">เหลือสิทธิ์ถอนฟรี: {freeWithdrawalsRemaining ?? 0} ครั้ง</p>
 
         <section className="mt-2">
           <p className="field-label">ประวัติการออม</p>
