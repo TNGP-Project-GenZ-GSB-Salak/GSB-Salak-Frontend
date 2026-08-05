@@ -37,7 +37,7 @@ export default defineConfig({
       // worker package's own docs warn about: a countdown spec's goal would
       // simply never get bought, with every assertion up to that point
       // passing - or, worse, hang until timeout with the countdown stuck at
-      // "pending" (see GSB-Salak-Backend/testfrontend/tests/countdown.spec.js).
+      // "pending".
       command: "go run ./cmd/worker",
       cwd: "../GSB-Salak-Backend",
       env: { ...process.env, KAPOOK_COUNTDOWN_DURATION },

@@ -1,5 +1,5 @@
-// Fetch client mirroring GSB-Salak-Backend/testfrontend/api.js's contract:
-// bearer token in localStorage, unwrap `{ data }` on success, throw `error` on failure.
+// Fetch client: bearer token in localStorage, unwrap `{ data }` on success,
+// throw `error` on failure.
 import type {
   Account,
   BuySalakResponse,

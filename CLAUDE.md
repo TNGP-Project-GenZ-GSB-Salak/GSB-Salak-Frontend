@@ -47,9 +47,8 @@ Copy `.env.example` to `.env` to override `VITE_API_BASE_URL` (defaults to
 `http://localhost:8080/api/v1`, i.e. `GSB-Salak-Backend`'s default `go run ./cmd/api`
 address).
 
-The dev server is pinned to port **5174** specifically to avoid clashing with
-`GSB-Salak-Backend/testfrontend`'s static server, which defaults to **5173** — the two
-can run side by side.
+The dev server is pinned to port **5174** (a fixed convention, distinct from the backend's
+own `:8080` and `GSB-Salak-Backend/adminfrontend`'s `:5175`).
 
 ## Architecture
 
@@ -75,8 +74,7 @@ src/
     │                         #   `{ error }`
     ├── types.ts              # DTOs — see "API contract" below
     ├── format.ts             # formatTHB, maskAccountNumber, formatDate, progressPct —
-    │                         #   presentation-only formatting, mirrors testfrontend's
-    │                         #   equivalent JS helpers
+    │                         #   presentation-only formatting
     ├── accounts.ts           # findPrimaryAccount — resolves a user's บัญชีคู่โอน
     ├── moneyValidation.ts    # hasAtMostTwoDecimals — client-side input guard the
     │                         #   backend's decimal fields don't themselves enforce

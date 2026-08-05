@@ -1,5 +1,4 @@
-// Fixed IDs from GSB-Salak-Backend/cmd/seed/main.go's deterministic demo data
-// (same backend/seed as GSB-Salak-Backend/testfrontend, so same values).
+// Fixed IDs from GSB-Salak-Backend/cmd/seed/main.go's deterministic demo data.
 // Only login.spec.js/register.spec.js still use these directly - every
 // other spec registers its own user (see helpers/auth.js's
 // registerFreshUser) rather than sharing this account.
@@ -12,9 +11,7 @@ export const SALAK_ACCOUNT_NUMBER = "4001000111";
 
 // Passed to both the api and worker webServer entries in playwright.config.js.
 // Short enough to observe within a test, long enough to assert a
-// "counting down, not yet purchased" state before it expires. Mirrors
-// GSB-Salak-Backend/testfrontend/tests/helpers/fixtures.js's constant of the
-// same name and value.
+// "counting down, not yet purchased" state before it expires.
 export const KAPOOK_COUNTDOWN_DURATION = "10s";
 
 // Funds every freshly-registered test user's savings account, so specs that

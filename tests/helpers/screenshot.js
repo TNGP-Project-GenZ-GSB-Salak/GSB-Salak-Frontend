@@ -5,8 +5,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Screenshots land in screenshots/<flow>/<case>/NN-label.png, numbered in the
-// order they're taken within a test case. Mirrors
-// GSB-Salak-Backend/testfrontend/tests/helpers/screenshot.js.
+// order they're taken within a test case.
 export function createShooter(flow, caseName) {
   const dir = path.join(__dirname, "..", "..", "screenshots", flow, caseName);
   fs.mkdirSync(dir, { recursive: true });
