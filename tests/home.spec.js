@@ -1,12 +1,12 @@
 import { test, expect } from "@playwright/test";
 import { createShooter } from "./helpers/screenshot.js";
-import { loginAsDemo } from "./helpers/auth.js";
+import { registerFreshUser } from "./helpers/auth.js";
 
 test.describe("home", () => {
   test("renders the main balance and the salak promo banner", async ({ page }) => {
     const shoot = createShooter("home", "renders");
 
-    await loginAsDemo(page);
+    await registerFreshUser(page);
     await shoot(page, "home-loaded");
 
     await expect(page.getByTestId("main-balance")).toBeVisible();
@@ -18,7 +18,7 @@ test.describe("home", () => {
   test("the salak promo banner navigates to the product info screen", async ({ page }) => {
     const shoot = createShooter("home", "promo-navigation");
 
-    await loginAsDemo(page);
+    await registerFreshUser(page);
     await page.getByTestId("salak-promo-banner").click();
     await page.waitForURL("/salak/info");
     await shoot(page, "salak-info-loaded");

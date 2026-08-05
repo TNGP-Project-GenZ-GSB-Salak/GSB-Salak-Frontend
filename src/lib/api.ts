@@ -10,8 +10,13 @@ import type {
   User,
 } from "./types";
 
+// Falls back to whatever host served this page (localhost on the
+// presenter's own machine, a LAN IP on a spectator's), not a hardcoded
+// "localhost" - a spectator's phone calling its own localhost would reach
+// nothing. VITE_API_BASE_URL still overrides this for any deployment where
+// the API lives on a different host than the frontend.
 const API_BASE: string =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080/api/v1";
+  import.meta.env.VITE_API_BASE_URL ?? `http://${window.location.hostname}:8080/api/v1`;
 
 const TOKEN_KEY = "token";
 

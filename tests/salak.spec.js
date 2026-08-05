@@ -1,12 +1,12 @@
 import { test, expect } from "@playwright/test";
 import { createShooter } from "./helpers/screenshot.js";
-import { loginAsDemo } from "./helpers/auth.js";
+import { registerFreshUser } from "./helpers/auth.js";
 
 test.describe("salak overview", () => {
   test("renders the salak balance and holdings list, and links to the buy-list screen", async ({ page }) => {
     const shoot = createShooter("salak", "overview-renders");
 
-    await loginAsDemo(page);
+    await registerFreshUser(page);
     await page.goto("/salak");
     await shoot(page, "salak-loaded");
 
@@ -32,7 +32,7 @@ test.describe("salak overview", () => {
   test("the account-history link navigates to the salak account's transactions", async ({ page }) => {
     const shoot = createShooter("salak", "history-link");
 
-    await loginAsDemo(page);
+    await registerFreshUser(page);
     await page.goto("/salak");
     await shoot(page, "salak-loaded");
 

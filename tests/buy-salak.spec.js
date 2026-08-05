@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { createShooter } from "./helpers/screenshot.js";
-import { loginAsDemo } from "./helpers/auth.js";
+import { registerFreshUser } from "./helpers/auth.js";
 
 async function enterAmountViaKeypad(page, digits) {
   await page.getByTestId("amount-trigger").click();
@@ -15,7 +15,7 @@ test.describe("buy salak", () => {
   test("mode-choose sheet offers buy-now and a save-first option into the Kapook goal-setup flow", async ({ page }) => {
     const shoot = createShooter("buy-salak", "mode-choose");
 
-    await loginAsDemo(page);
+    await registerFreshUser(page);
     await page.goto("/salak/buy");
     await page.getByTestId("buy-button").first().click();
     await shoot(page, "mode-choose-sheet");
@@ -31,7 +31,7 @@ test.describe("buy salak", () => {
   test("below-minimum amount is rejected and blocks the slide-to-send control", async ({ page }) => {
     const shoot = createShooter("buy-salak", "below-minimum");
 
-    await loginAsDemo(page);
+    await registerFreshUser(page);
     await page.goto("/salak/buy");
     await page.getByTestId("buy-button").first().click();
     await page.getByTestId("mode-buy-now").click();
@@ -54,7 +54,7 @@ test.describe("buy salak", () => {
   test("happy path: buy a product and see it appear back on the salak overview", async ({ page }) => {
     const shoot = createShooter("buy-salak", "success");
 
-    await loginAsDemo(page);
+    await registerFreshUser(page);
     await page.goto("/salak/buy");
     await page.getByTestId("buy-button").first().click();
     await shoot(page, "mode-choose-sheet");

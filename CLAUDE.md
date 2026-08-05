@@ -86,25 +86,38 @@ End-to-end coverage lives in `tests/` (Playwright): `login`, `register`, `home`,
 `accounts`, `salak`, `buy-salak`, `transactions`, `settings` specs, each screenshotting
 its key steps into `screenshots/<flow>/<case>/` (gitignored, regenerated per run).
 
-`playwright.config.js`'s `webServer` array starts **both** `npm run dev` (this app, port
-5174) and `go run ./cmd/api` (in `../GSB-Salak-Backend`, port 8080) automatically,
-reusing either if already running outside CI — so `npm test` alone is enough as long as
-Postgres is already up, migrated, and seeded:
+`playwright.config.js`'s `webServer` array starts **three** processes automatically,
+reusing any already running outside CI: `npm run dev` (this app, port 5174),
+`go run ./cmd/api` (port 8080), and `go run ./cmd/worker` (the Kapook auto-purchase
+worker — no port of its own; Playwright just spawns it and moves on). Omitting the
+worker entry is the exact silent failure the worker package's own docs warn about: a
+countdown spec's goal would simply never get bought, with every assertion up to that
+point passing, or worse, hang until timeout. `KAPOOK_COUNTDOWN_DURATION` and
+`REGISTRATION_SAVINGS_STARTING_BALANCE` (`tests/helpers/fixtures.js`) are passed as env
+vars to the relevant webServer entries. So `npm test` alone is enough as long as
+Postgres is already up and migrated:
 
 ```sh
 cd ../GSB-Salak-Backend
 docker compose up -d
 go run ./cmd/migrate up
-SEED_DEMO_DATA=true go run ./cmd/seed
 ```
 
-`tests/globalSetup.js` then resets the seeded demo user's account balances, ticket
-sequence, and transaction/holdings history to a known baseline via `docker exec ...
-psql` before every run (same Postgres container/demo user as
-`GSB-Salak-Backend/testfrontend` — see its README for the shared setup story). Fixed
-demo IDs/credentials live in `tests/helpers/fixtures.js`. `fullyParallel: false` /
-`workers: 1` in `playwright.config.js` is deliberate: tests mutate shared demo-account
-state (balances, ticket numbers), so they must run serially, not concurrently.
+**Every spec registers its own user** via `tests/helpers/auth.js`'s `registerFreshUser`
+— registration (see `GSB-Salak-Backend`'s account-provisioning ticket) provisions all
+three accounts atomically and funds savings from `REGISTRATION_SAVINGS_STARTING_BALANCE`,
+so each test owns its own balances/holdings instead of contending over shared demo-user
+state. Only `login.spec.js`/`register.spec.js` still use the real seeded demo user
+(`tests/helpers/fixtures.js`'s `DEMO_USERNAME`/`DEMO_PASSWORD`), since they assert
+against credentials that must already exist (a wrong-password rejection, a
+duplicate-username conflict) — seeding via `SEED_DEMO_DATA=true go run ./cmd/seed` is
+only needed for those two specs. There is no `globalSetup.js` — nothing resets shared
+state anymore, because nothing shares state. `fullyParallel`/`workers` are unset
+(Playwright's parallel defaults apply): the fresh-user-per-test fixture removed the
+constraint that previously forced serial execution. The one exception, if a future spec
+ever manipulates `salak.draw_dates` or `salak.products` (both still globally shared),
+is that it would need to stay serial or run isolated deliberately — no such spec exists
+in this suite yet.
 
 **No unit or component tests exist yet** — there's no `vitest`/`jest` or
 `@testing-library/react` configured, only Playwright. `src/lib/format.ts` (pure
