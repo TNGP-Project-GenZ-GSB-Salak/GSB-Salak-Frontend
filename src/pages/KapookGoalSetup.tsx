@@ -48,7 +48,11 @@ export function KapookGoalSetup() {
     return products.find((p) => p.id === requestedProductId) ?? products[0];
   }, [products, requestedProductId]);
 
-  if (!kapookState.account) {
+  // termsAccepted is fetched fresh from the server (GET /kapook/terms) - null
+  // only while that request is still in flight, so it's checked separately
+  // from the false case rather than folded into one falsy check.
+  if (kapookState.termsAccepted === null) return null;
+  if (!kapookState.termsAccepted) {
     return <Navigate to="/kapook/open" state={{ productId: requestedProductId }} replace />;
   }
 

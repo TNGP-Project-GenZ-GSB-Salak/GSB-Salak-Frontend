@@ -43,12 +43,6 @@ export function generateId(): string {
   });
 }
 
-export function generateAccountNumber(): string {
-  let digits = "";
-  for (let i = 0; i < 10; i++) digits += Math.floor(Math.random() * 10);
-  return digits;
-}
-
 // prompt/README.md: "Each savings goal gets 2 free withdrawals per calendar
 // year, tracked per goal/piggy... closing a piggy and opening a new one
 // resets the quota." So this counts only transactions tagged with the

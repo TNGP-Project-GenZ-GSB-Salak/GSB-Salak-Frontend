@@ -93,7 +93,8 @@ export function KapookTracker() {
     [products, state.goal?.productId],
   );
 
-  if (!state.account) return <Navigate to="/kapook/open" replace />;
+  if (state.termsAccepted === null) return null;
+  if (!state.termsAccepted) return <Navigate to="/kapook/open" replace />;
   if (!state.goal) return <Navigate to="/kapook/goal/new" replace />;
 
   const { goal } = state;
@@ -168,7 +169,7 @@ export function KapookTracker() {
 
           <div className="kapook-account-row">
             <span className="kapook-account-row__label">บัญชีกระปุกออมสลาก</span>
-            <span className="kapook-account-row__value">{state.account.accountNumber}</span>
+            <span className="kapook-account-row__value">{state.account?.accountNumber ?? ""}</span>
           </div>
         </Card>
 

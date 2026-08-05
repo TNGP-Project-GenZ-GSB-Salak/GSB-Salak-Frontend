@@ -95,7 +95,7 @@ export function Accounts() {
                   }
                 />
               ))}
-            {kapookState.account && (
+            {kapookState.termsAccepted && (
               <button
                 type="button"
                 onClick={() => navigate("/salak/buy", { state: { from: "/accounts" } })}
@@ -105,7 +105,7 @@ export function Accounts() {
                 <div className="gradient-card__top">
                   <div>
                     <p className="gradient-card__label">กระปุกออมสลาก</p>
-                    <p className="gradient-card__meta">{kapookState.account.accountNumber}</p>
+                    <p className="gradient-card__meta">{kapookState.account?.accountNumber ?? ""}</p>
                   </div>
                   <ArrowIcon />
                 </div>

@@ -6,25 +6,15 @@
 // ./types.ts and ./api.ts, which hand-mirror the real backend DTOs. Do not add a
 // "kapook" member to AccountType or a fake endpoint to api.ts for this feature.
 
-// Matches the prototype's real onboarding flow: the user only ever types the
-// ID-card verification number (idNumber) — every other field is auto-filled
-// from a mock lookup (there is no real KYC backend), then just reviewed and
-// confirmed. See MOCK_KYC_PROFILE in KapookOnboarding.tsx.
-export interface KycInfo {
-  idNumber: string;
-  fullNameTh: string;
-  fullNameEn: string;
-  birthDateBE: string;
-  address: string;
-  occupation: string;
-  workplace: string;
-}
-
+// The kapook account itself is real (registration opens it - see
+// GSB-Salak-Backend's account-provisioning ticket), so this is derived from
+// the real Account (lib/types.ts) fetched via api.listAccounts(), not
+// invented client-side. Kept as its own small shape rather than reusing
+// Account directly so consumers don't depend on the backend's snake_case
+// field names.
 export interface KapookAccountInfo {
   accountNumber: string;
   openedAt: string;
-  kyc: KycInfo;
-  termsAcceptedAt: string;
 }
 
 export interface KapookGoal {
@@ -59,8 +49,13 @@ export interface KapookTransaction {
   createdAt: string;
 }
 
+// Persisted to localStorage (see lib/kapookStore.ts) - the still-fictional
+// half of Kapook (goals, deposits, withdrawals, history), pending later
+// tickets that move each onto the real backend. The account itself and
+// terms acceptance are NOT here: both are real and server-backed already,
+// so KapookContext fetches them fresh each session instead of persisting a
+// local copy - see KapookContextValue's own `account`/`termsAccepted`.
 export interface KapookState {
-  account: KapookAccountInfo | null;
   goal: KapookGoal | null;
   transactions: KapookTransaction[];
   // Set when the 24h countdown fires the system-triggered auto-purchase
@@ -76,5 +71,5 @@ export interface KapookState {
 }
 
 export function emptyKapookState(): KapookState {
-  return { account: null, goal: null, transactions: [], autoPurchaseNotice: null, hideSalakSuggestion: false };
+  return { goal: null, transactions: [], autoPurchaseNotice: null, hideSalakSuggestion: false };
 }

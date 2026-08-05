@@ -66,6 +66,10 @@ export interface BuySalakResponse {
   maturity_date: string;
 }
 
+export interface KapookTermsStatus {
+  accepted: boolean;
+}
+
 export type LedgerEntryType = "debit" | "credit";
 
 export interface Transaction {

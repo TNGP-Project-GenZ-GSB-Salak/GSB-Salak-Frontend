@@ -13,7 +13,6 @@ import type { BuySalakResponse } from "../lib/types";
 import { findPrimaryAccount } from "../lib/accounts";
 import {
   freeWithdrawalsRemaining,
-  generateAccountNumber,
   generateId,
   isGoalTargetReached,
   loadState,
@@ -21,15 +20,31 @@ import {
   saveState,
   withdrawFee,
 } from "../lib/kapookStore";
-import type { KapookGoal, KapookState, KapookTransaction, KycInfo } from "../lib/kapookTypes";
+import type { KapookAccountInfo, KapookGoal, KapookState, KapookTransaction } from "../lib/kapookTypes";
 import { emptyKapookState } from "../lib/kapookTypes";
 import { useAuth } from "./AuthContext";
 
+// The persisted fiction (goal/transactions/etc.) plus the two facts that are
+// already real and server-backed - the kapook account itself and terms
+// acceptance - neither of which is ever written to localStorage; both are
+// fetched fresh each session so acceptance survives a reload and shows up on
+// another device.
+interface KapookContextState extends KapookState {
+  account: KapookAccountInfo | null;
+  // null only while the initial fetch is in flight - never persisted, and
+  // never assumed true just because an account exists (every registered
+  // user has a kapook account; not every one has accepted the terms).
+  termsAccepted: boolean | null;
+}
+
 interface KapookContextValue {
-  state: KapookState;
+  state: KapookContextState;
   freeWithdrawalsRemaining: number;
   msUntilAutoPurchase: number | null;
-  openAccount: (kyc: KycInfo) => void;
+  // Records the customer's acceptance with the bank (POST
+  // /kapook/terms/accept). Takes no KYC data - the wizard's identity steps
+  // are review-only theatre; nothing they display is ever transmitted.
+  acceptTerms: () => Promise<void>;
   createGoal: (targetAmount: number, productId: string) => void;
   deposit: (amount: number) => void;
   withdraw: (amount: number) => void;
@@ -97,6 +112,8 @@ export function KapookProvider({ children }: { children: ReactNode }) {
   // `if (!state.goal) return <Navigate ... />` guard and bouncing away
   // permanently before the real state ever loads.
   const [state, setState] = useState<KapookState>(() => (userId ? loadState(userId) : emptyKapookState()));
+  const [account, setAccount] = useState<KapookAccountInfo | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState<boolean | null>(null);
   const loadedForUserId = useRef(userId);
   const purchaseInFlight = useRef(false);
 
@@ -104,6 +121,29 @@ export function KapookProvider({ children }: { children: ReactNode }) {
     if (userId === loadedForUserId.current) return;
     loadedForUserId.current = userId;
     setState(userId ? loadState(userId) : emptyKapookState());
+  }, [userId]);
+
+  // The kapook account and terms acceptance are real - fetched from the
+  // server every time the signed-in user changes, never read from or
+  // written to localStorage.
+  useEffect(() => {
+    if (!userId) {
+      setAccount(null);
+      setTermsAccepted(null);
+      return;
+    }
+    let cancelled = false;
+    api.listAccounts().then((accounts) => {
+      if (cancelled) return;
+      const kapookAccount = accounts.find((a) => a.type === "kapook");
+      setAccount(kapookAccount ? { accountNumber: kapookAccount.account_number, openedAt: kapookAccount.created_at } : null);
+    });
+    api.getKapookTermsStatus().then((status) => {
+      if (!cancelled) setTermsAccepted(status.accepted);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [userId]);
 
   const persist = useCallback(
@@ -114,20 +154,10 @@ export function KapookProvider({ children }: { children: ReactNode }) {
     [userId],
   );
 
-  const openAccount = useCallback(
-    (kyc: KycInfo) => {
-      persist({
-        ...state,
-        account: {
-          accountNumber: generateAccountNumber(),
-          openedAt: new Date().toISOString(),
-          kyc,
-          termsAcceptedAt: new Date().toISOString(),
-        },
-      });
-    },
-    [state, persist],
-  );
+  const acceptTerms = useCallback(async () => {
+    await api.acceptKapookTerms();
+    setTermsAccepted(true);
+  }, []);
 
   const createGoal = useCallback(
     (targetAmount: number, productId: string) => {
@@ -272,10 +302,10 @@ export function KapookProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<KapookContextValue>(
     () => ({
-      state,
+      state: { ...state, account, termsAccepted },
       freeWithdrawalsRemaining: freeWithdrawalsRemaining(state),
       msUntilAutoPurchase: state.goal?.goalReachedAt ? msUntilAutoPurchase(state.goal.goalReachedAt) : null,
-      openAccount,
+      acceptTerms,
       createGoal,
       deposit,
       withdraw,
@@ -285,7 +315,9 @@ export function KapookProvider({ children }: { children: ReactNode }) {
     }),
     [
       state,
-      openAccount,
+      account,
+      termsAccepted,
+      acceptTerms,
       createGoal,
       deposit,
       withdraw,

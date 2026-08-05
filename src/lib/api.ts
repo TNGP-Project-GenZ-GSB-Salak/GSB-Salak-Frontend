@@ -4,6 +4,7 @@ import type {
   Account,
   BuySalakResponse,
   Holding,
+  KapookTermsStatus,
   LoginResult,
   SalakProduct,
   Transaction,
@@ -117,6 +118,14 @@ export function buySalak(input: {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export function getKapookTermsStatus(): Promise<KapookTermsStatus> {
+  return apiFetch<KapookTermsStatus>("/kapook/terms");
+}
+
+export function acceptKapookTerms(): Promise<KapookTermsStatus> {
+  return apiFetch<KapookTermsStatus>("/kapook/terms/accept", { method: "POST" });
 }
 
 export function listTransactions(

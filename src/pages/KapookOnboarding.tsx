@@ -5,7 +5,6 @@ import { PageHeader } from "../components/PageHeader";
 import { Button } from "../components/Button";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useKapook } from "../context/KapookContext";
-import type { KycInfo } from "../lib/kapookTypes";
 import { messageForError } from "../lib/kapookErrorMessages";
 
 type Step = "idcard" | "review" | "terms" | "success";
@@ -38,7 +37,7 @@ export function KapookOnboarding() {
   const navigate = useNavigate();
   const location = useLocation();
   const requestedProductId = (location.state as { productId?: string } | null)?.productId;
-  const { openAccount } = useKapook();
+  const { acceptTerms } = useKapook();
   const [step, setStep] = useState<Step>("idcard");
   const [idNumber, setIdNumber] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -56,8 +55,7 @@ export function KapookOnboarding() {
   async function handleAcceptTerms() {
     setError(null);
     try {
-      const kyc: KycInfo = { idNumber, ...MOCK_PROFILE };
-      await openAccount(kyc);
+      await acceptTerms();
       setStep("success");
     } catch (err) {
       setError(messageForError(err));
@@ -66,8 +64,8 @@ export function KapookOnboarding() {
 
   return (
     <AppShell showNav={false}>
-      {step === "idcard" && <PageHeader title="เปิดบัญชีกระปุกออม" variant="back" onAction={() => navigate("/salak/buy")} />}
-      {step === "review" && <PageHeader title="เปิดบัญชีกระปุกออม" variant="back" onAction={() => setStep("idcard")} />}
+      {step === "idcard" && <PageHeader title="ยอมรับข้อกำหนดกระปุกออม" variant="back" onAction={() => navigate("/salak/buy")} />}
+      {step === "review" && <PageHeader title="ยอมรับข้อกำหนดกระปุกออม" variant="back" onAction={() => setStep("idcard")} />}
       {step === "terms" && (
         <header className="page-header kyc-header-both">
           <button type="button" onClick={() => setStep("review")} className="page-header__button" aria-label="ย้อนกลับ">
@@ -81,7 +79,7 @@ export function KapookOnboarding() {
           </button>
         </header>
       )}
-      {step === "success" && <PageHeader title="เปิดบัญชีกระปุกออม" variant="plain" />}
+      {step === "success" && <PageHeader title="ยอมรับข้อกำหนดกระปุกออม" variant="plain" />}
 
       {step === "idcard" && (
         <div className="flex flex-1 flex-col items-center px-6 pb-6 pt-2">
@@ -108,7 +106,7 @@ export function KapookOnboarding() {
               data-testid="kyc-id-input"
             />
           </div>
-          <p className="kyc-helper">เลขชุด 12 หลักที่อยู่ด้านหลังบัตรประชาชนของคุณ ใช้เพื่อยืนยันตัวตนในการเปิดบัญชีกระปุกออมสลาก</p>
+          <p className="kyc-helper">เลขชุด 12 หลักที่อยู่ด้านหลังบัตรประชาชนของคุณ ใช้เพื่อยืนยันตัวตนก่อนยอมรับข้อกำหนดกระปุกออมสลาก</p>
 
           <div className="flex-1" />
           <div className="kyc-next-row w-full">
@@ -141,7 +139,7 @@ export function KapookOnboarding() {
           </div>
 
           <p className="kyc-caption mb-5" style={{ marginTop: 10 }}>
-            ตรวจสอบข้อมูลเปิดบัญชีกระปุกออม
+            ตรวจสอบข้อมูลก่อนยอมรับข้อกำหนดกระปุกออม
           </p>
 
           <div className="kyc-review-card">
@@ -208,7 +206,7 @@ export function KapookOnboarding() {
             </div>
           </div>
           <p className="font-semibold" style={{ fontSize: 15 }}>
-            เปิดบัญชีกระปุกออมสำเร็จ
+            ยอมรับข้อกำหนดกระปุกออมสำเร็จ
           </p>
           <div className="mt-4 w-full">
             <Button
@@ -223,7 +221,7 @@ export function KapookOnboarding() {
 
       <ConfirmDialog
         open={dialogOpen}
-        message="กรุณาตรวจสอบและยืนยันข้อมูลการเปิดบัญชีกระปุกออม หากต้องการเปลี่ยนแปลงข้อมูล กรุณาติดต่อสาขาธนาคารออมสิน"
+        message="กรุณาตรวจสอบและยืนยันข้อมูลก่อนยอมรับข้อกำหนดกระปุกออม หากต้องการเปลี่ยนแปลงข้อมูล กรุณาติดต่อสาขาธนาคารออมสิน"
         confirmLabel="ยืนยันข้อมูลถูกต้อง"
         cancelLabel="ยกเลิก"
         onConfirm={handleDialogConfirm}

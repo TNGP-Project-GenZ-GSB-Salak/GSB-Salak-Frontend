@@ -74,7 +74,7 @@ export function SalakBuyList() {
       setSheet("piggyExists");
       return;
     }
-    if (!kapookState.account) {
+    if (!kapookState.termsAccepted) {
       navigate("/kapook/open", { state: { productId: activeProductId } });
     } else {
       navigate("/kapook/goal/new", { state: { productId: activeProductId } });
