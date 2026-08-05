@@ -97,6 +97,27 @@ export interface KapookGoalResponse {
   buy_eligible: boolean;
 }
 
+// Hand-mirrors internal/kapook/http/dto.go's buyFromGoalResponse verbatim -
+// the Kapook-funded counterpart to BuySalakResponse above. reference_id
+// through maturity_date match BuySalakResponse's own field names 1:1 since
+// both wrap the same transaction.BuySalakReceipt server-side; goal and
+// goal_completed are what this response adds on top, so a caller can read
+// the post-purchase goal state (available_balance, purchased_units/count,
+// is_active) and the completed flag straight from the response instead of
+// re-deriving either client-side.
+export interface KapookBuyFromGoalResponse {
+  goal: KapookGoalResponse;
+  goal_completed: boolean;
+  reference_id: string;
+  product_name: string;
+  units: number;
+  ticket_start: string;
+  ticket_end: string;
+  amount: string;
+  purchase_date: string;
+  maturity_date: string;
+}
+
 export type LedgerEntryType = "debit" | "credit";
 
 export interface Transaction {

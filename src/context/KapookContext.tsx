@@ -9,8 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import * as api from "../lib/api";
-import type { BuySalakResponse } from "../lib/types";
-import { findPrimaryAccount } from "../lib/accounts";
+import type { KapookBuyFromGoalResponse } from "../lib/types";
 import {
   freeWithdrawalsRemaining,
   generateId,
@@ -55,8 +54,10 @@ interface KapookContextValue {
   deposit: (amount: number) => void;
   withdraw: (amount: number) => void;
   /** Buys Salak using `amount` from the piggy (defaults to the entire saved
-   * balance, for the system-triggered auto-purchase path). */
-  confirmGoalPurchase: (amount?: number) => Promise<BuySalakResponse>;
+   * balance, for the system-triggered auto-purchase path). Funded from the
+   * kapook account itself via POST /kapook/goals/buy - NOT the public
+   * buy-Salak endpoint. */
+  confirmGoalPurchase: (amount?: number) => Promise<KapookBuyFromGoalResponse>;
   dismissAutoPurchaseNotice: () => void;
   /** Permanently stops the salak-suggestion sheet from ever firing again,
    * for every future goal — set when the user checks "ไม่ต้องแสดงคำแนะนำนี้อีก"
@@ -236,38 +237,47 @@ export function KapookProvider({ children }: { children: ReactNode }) {
     [state, persist],
   );
 
+  // Funds the purchase from the kapook account's own real balance (POST
+  // /kapook/goals/buy) - deliberately NOT api.buySalak, which stays closed
+  // to kapook-type accounts (that endpoint's savings-account path is a
+  // different, separate defect this action does not touch). The goal's
+  // post-purchase shape (availableBalance, purchasedAmount/Units/Count,
+  // goalReachedAt) is copied straight from the server's response - the read
+  // model ticket 05 already built - rather than accumulated from the
+  // pre-purchase local values, and the goal closes only when the server's
+  // own goal_completed flag says so.
   const confirmGoalPurchase = useCallback(
-    async (amount?: number): Promise<BuySalakResponse> => {
+    async (amount?: number): Promise<KapookBuyFromGoalResponse> => {
       if (!state.goal) throw new Error("ไม่พบเป้าหมายการออม");
+      if (!account) throw new Error("ไม่พบบัญชีกระปุกออมสลาก");
       const spendAmount = amount ?? state.goal.availableBalance;
-      if (spendAmount <= 0 || spendAmount > state.goal.availableBalance) {
+      if (spendAmount <= 0) {
         throw new Error("จำนวนเงินไม่ถูกต้อง");
       }
       if (purchaseInFlight.current) throw new Error("กำลังทำรายการอยู่");
       purchaseInFlight.current = true;
       try {
         const accounts = await api.listAccounts();
-        const fundingAccount = findPrimaryAccount(accounts);
         const salakAccount = accounts.find((a) => a.type === "salak");
-        if (!fundingAccount || !salakAccount) {
-          throw new Error("ไม่พบบัญชีเงินฝากหรือบัญชีสลากดิจิทัล");
+        if (!salakAccount) {
+          throw new Error("ไม่พบบัญชีสลากดิจิทัล");
         }
-        const receipt = await api.buySalak({
-          funding_account_id: fundingAccount.id,
+        const receipt = await api.buyFromKapookGoal({
+          kapook_account_id: account.id,
           salak_account_id: salakAccount.id,
-          product_id: state.goal.productId,
           amount: String(spendAmount),
         });
+        const g = receipt.goal;
         const purchased: KapookGoal = {
           ...state.goal,
-          availableBalance: state.goal.availableBalance - spendAmount,
-          purchasedAmount: state.goal.purchasedAmount + spendAmount,
-          purchasedUnits: state.goal.purchasedUnits + receipt.units,
-          purchasedCount: state.goal.purchasedCount + 1,
+          availableBalance: Number(g.available_balance),
+          purchasedAmount: Number(g.salak_amount),
+          purchasedUnits: g.purchased_units,
+          purchasedCount: g.purchased_count,
+          goalReachedAt: g.goal_reached_at ?? null,
         };
-        const closed = applyClosingRule(purchased) === null;
-        const goal = closed ? { ...purchased, goalReachedAt: null } : purchased;
-        let next: KapookState = { ...state, goal: closed ? null : goal };
+        const goal = receipt.goal_completed ? null : purchased;
+        let next: KapookState = { ...state, goal };
         next = pushTransaction(next, state.goal.id, "buy_salak", spendAmount, 0);
         persist(next);
         return receipt;
@@ -275,7 +285,7 @@ export function KapookProvider({ children }: { children: ReactNode }) {
         purchaseInFlight.current = false;
       }
     },
-    [state, persist],
+    [state, persist, account],
   );
 
   const dismissAutoPurchaseNotice = useCallback(() => {
