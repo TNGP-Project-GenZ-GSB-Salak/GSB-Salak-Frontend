@@ -9,8 +9,9 @@ import {
   type ReactNode,
 } from "react";
 import * as api from "../lib/api";
-import type { BuySalakResponse } from "../lib/types";
+import type { BuySalakResponse, KapookWithdrawResponse } from "../lib/types";
 import { findPrimaryAccount } from "../lib/accounts";
+import { NO_PRIMARY_ACCOUNT_MESSAGE } from "../lib/kapookErrorMessages";
 import {
   freeWithdrawalsRemaining,
   generateId,
@@ -18,7 +19,6 @@ import {
   loadState,
   msUntilAutoPurchase,
   saveState,
-  withdrawFee,
 } from "../lib/kapookStore";
 import type { KapookAccountInfo, KapookGoal, KapookState, KapookTransaction } from "../lib/kapookTypes";
 import { emptyKapookState } from "../lib/kapookTypes";
@@ -47,13 +47,20 @@ interface KapookContextValue {
   acceptTerms: () => Promise<void>;
   // Persists the goal server-side (POST /kapook/goals) - the goal itself is
   // now real and survives a reload. Also still writes the local fiction
-  // goal deposit/withdraw/buy-from-piggy read, until their own tickets move
-  // them onto the real backend too; expect the two to disagree in the
-  // meantime (a deliberate, temporary inconsistency - see the goal-creation
-  // ticket's own notes).
+  // goal deposit/buy-from-piggy read (withdraw is real now too - see its own
+  // doc comment below), until their own tickets move them onto the real
+  // backend too; expect the two to disagree in the meantime (a deliberate,
+  // temporary inconsistency - see the goal-creation ticket's own notes).
   createGoal: (targetAmount: number, productId: string) => Promise<void>;
   deposit: (amount: number) => void;
-  withdraw: (amount: number) => void;
+  /** Withdraws from the goal via the real backend (POST
+   * /kapook/goals/withdraw): debits the kapook account and credits the
+   * caller's own primary account (บัญชีคู่โอน), resolved here - never a
+   * customer-chosen destination. Throws NO_PRIMARY_ACCOUNT_MESSAGE (and logs
+   * loudly) rather than guessing a destination when no account is flagged
+   * primary. Returns the server's response so the caller can display the
+   * server-computed fee/net-credited without any client-side money math. */
+  withdraw: (amount: number) => Promise<KapookWithdrawResponse>;
   /** Buys Salak using `amount` from the piggy (defaults to the entire saved
    * balance, for the system-triggered auto-purchase path). */
   confirmGoalPurchase: (amount?: number) => Promise<BuySalakResponse>;
@@ -222,18 +229,55 @@ export function KapookProvider({ children }: { children: ReactNode }) {
   // no fee/quota-exempt "bail-out" type. During an active countdown the UI
   // forces `amount` to the full saved balance (see KapookWithdraw.tsx); this
   // action doesn't need to know that's why the number is what it is.
+  //
+  // Real backend call (POST /kapook/goals/withdraw) — unlike deposit, this
+  // is no longer local fiction. The destination is always the caller's own
+  // primary account (บัญชีคู่โอน), resolved here rather than accepted as a
+  // parameter, so nothing upstream can pass a customer-chosen destination.
+  // The backend's withdrawRequest still requires an explicit
+  // savings_account_id on the wire, so it's still sent - just never exposed
+  // as a choice. If no account is flagged primary, this fails loudly
+  // (console.error + a support-contact message) instead of guessing the
+  // sole savings account, even though that guess is unambiguous today.
   const withdraw = useCallback(
-    (amount: number) => {
-      if (!state.goal || amount <= 0) return;
-      const fee = withdrawFee(amount, state);
-      const withdrawn: KapookGoal = { ...state.goal, availableBalance: Math.max(0, state.goal.availableBalance - amount) };
-      const closed = applyClosingRule(withdrawn) === null;
-      const goal = closed ? { ...withdrawn, goalReachedAt: null } : withdrawn;
-      let next: KapookState = { ...state, goal: closed ? null : goal };
-      next = pushTransaction(next, state.goal.id, fee > 0 ? "withdraw_with_fee" : "withdraw", amount, fee);
+    async (amount: number): Promise<KapookWithdrawResponse> => {
+      if (!state.goal) throw new Error("ไม่พบเป้าหมายการออม");
+      if (!account) throw new Error("ไม่พบบัญชีกระปุกออมสลาก");
+      if (amount <= 0) throw new Error("จำนวนเงินไม่ถูกต้อง");
+
+      const accounts = await api.listAccounts();
+      const primaryAccount = findPrimaryAccount(accounts);
+      if (!primaryAccount) {
+        console.error(
+          "[Kapook] withdraw blocked: no account flagged is_primary_account for this user",
+          { userId, kapookAccountId: account.id },
+        );
+        throw new Error(NO_PRIMARY_ACCOUNT_MESSAGE);
+      }
+
+      const response = await api.withdrawFromKapook({
+        kapook_account_id: account.id,
+        savings_account_id: primaryAccount.id,
+        amount: String(amount),
+      });
+
+      const closesGoal = !response.goal.is_active;
+      const withdrawnGoal: KapookGoal = {
+        ...state.goal,
+        availableBalance: Number(response.goal.available_balance),
+      };
+      let next: KapookState = { ...state, goal: closesGoal ? null : withdrawnGoal };
+      next = pushTransaction(
+        next,
+        state.goal.id,
+        response.fee_charged ? "withdraw_with_fee" : "withdraw",
+        amount,
+        Number(response.fee_amount),
+      );
       persist(next);
+      return response;
     },
-    [state, persist],
+    [state, persist, account, userId],
   );
 
   const confirmGoalPurchase = useCallback(

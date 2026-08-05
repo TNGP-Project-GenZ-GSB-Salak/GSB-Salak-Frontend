@@ -97,6 +97,33 @@ export interface KapookGoalResponse {
   buy_eligible: boolean;
 }
 
+// Hand-mirrors internal/kapook/http/dto.go's withdrawalStatusResponse - a
+// read-time preview of the goal's free-withdrawal allowance, not a lock
+// (Withdraw itself re-checks under lock and can still land on a different
+// outcome for a concurrent request). next_withdrawal_is_free is the only
+// signal KapookWithdraw.tsx shows before confirming; the fee amount itself
+// is never previewed client-side (see KapookWithdrawResponse below).
+export interface KapookWithdrawalStatusResponse {
+  window_start: string;
+  window_end: string;
+  free_withdrawals_used: number;
+  free_withdrawals_remaining: number;
+  next_withdrawal_is_free: boolean;
+}
+
+// Hand-mirrors internal/kapook/http/dto.go's withdrawResponse verbatim.
+// fee_amount is "0" when fee_charged is false. net_credited is what the
+// destination account actually received (amount minus fee_amount) - the
+// only server-computed truth for what a withdrawal cost; never recompute
+// this client-side.
+export interface KapookWithdrawResponse {
+  goal: KapookGoalResponse;
+  amount: string;
+  fee_charged: boolean;
+  fee_amount: string;
+  net_credited: string;
+}
+
 export type LedgerEntryType = "debit" | "credit";
 
 export interface Transaction {

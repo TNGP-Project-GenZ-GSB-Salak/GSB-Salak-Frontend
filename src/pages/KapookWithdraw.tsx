@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
-import type { Account } from "../lib/types";
+import type { Account, KapookWithdrawalStatusResponse } from "../lib/types";
 import { formatTHB, formatDate, maskAccountNumber } from "../lib/format";
-import { freeWithdrawalsRemaining as computeFreeRemaining, withdrawFee } from "../lib/kapookStore";
 import { findPrimaryAccount } from "../lib/accounts";
 import { AppShell } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
@@ -12,7 +11,7 @@ import { SlideToConfirm } from "../components/SlideToConfirm";
 import { BottomSheet } from "../components/BottomSheet";
 import { Keypad } from "../components/Keypad";
 import { useKapook } from "../context/KapookContext";
-import { messageForError } from "../lib/kapookErrorMessages";
+import { messageForError, NO_PRIMARY_ACCOUNT_MESSAGE } from "../lib/kapookErrorMessages";
 
 type Step = "amount" | "success";
 
@@ -33,6 +32,12 @@ export function KapookWithdraw() {
   const navigate = useNavigate();
   const { state, withdraw } = useKapook();
   const [destAccount, setDestAccount] = useState<Account | null>(null);
+  // Only true once the accounts fetch has come back with no account flagged
+  // is_primary_account - never guessed away by falling back to a savings
+  // account found by type (see lib/kapookErrorMessages.ts's
+  // NO_PRIMARY_ACCOUNT_MESSAGE for why).
+  const [noPrimaryAccount, setNoPrimaryAccount] = useState(false);
+  const [withdrawalStatus, setWithdrawalStatus] = useState<KapookWithdrawalStatusResponse | null>(null);
   const [step, setStep] = useState<Step>("amount");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [keypadOpen, setKeypadOpen] = useState(false);
@@ -40,7 +45,10 @@ export function KapookWithdraw() {
   const [keypadInput, setKeypadInput] = useState("");
   const [amountBeforeKeypad, setAmountBeforeKeypad] = useState(0);
   const [successAt, setSuccessAt] = useState<string | null>(null);
+  // Both frozen from the real POST /kapook/goals/withdraw response at
+  // confirm time - the server's own numbers, never recomputed client-side.
   const [successFee, setSuccessFee] = useState(0);
+  const [successNet, setSuccessNet] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -49,7 +57,14 @@ export function KapookWithdraw() {
     api
       .listAccounts()
       .then((list) => {
-        if (!cancelled) setDestAccount(findPrimaryAccount(list) ?? null);
+        if (cancelled) return;
+        const primary = findPrimaryAccount(list);
+        if (!primary) {
+          console.error("[KapookWithdraw] no account flagged is_primary_account for this user");
+          setNoPrimaryAccount(true);
+          return;
+        }
+        setDestAccount(primary);
       })
       .catch((err) => !cancelled && setLoadError(messageForError(err, "โหลดข้อมูลไม่สำเร็จ")));
     return () => {
@@ -57,39 +72,51 @@ export function KapookWithdraw() {
     };
   }, []);
 
+  // Preview only (GET /kapook/goals/withdrawal-status) - whether the next
+  // withdrawal would be free, straight from the server; Withdraw itself
+  // re-checks under lock, so this can still be stale by the time the
+  // customer confirms. No monetary fee amount is previewed here - the
+  // backend has no quote endpoint that returns one for an arbitrary amount
+  // without actually moving money (see the ticket notes / final report).
+  useEffect(() => {
+    if (!state.account) return;
+    let cancelled = false;
+    api
+      .getKapookWithdrawalStatus(state.account.id)
+      .then((status) => {
+        if (!cancelled) setWithdrawalStatus(status);
+      })
+      .catch((err) => !cancelled && setLoadError(messageForError(err, "โหลดข้อมูลไม่สำเร็จ")));
+    return () => {
+      cancelled = true;
+    };
+  }, [state.account]);
+
   const forcedFull = !!state.goal?.goalReachedAt;
 
   useEffect(() => {
     if (forcedFull && state.goal) setAmount(state.goal.availableBalance);
   }, [forcedFull, state.goal]);
 
-  const fee = useMemo(() => withdrawFee(amount, state), [amount, state]);
   // Free-withdrawal count *before* this pending withdrawal — drives the
   // confirm modal's badge/warning copy (prompt/prototype-reference.html's
-  // stageWithdrawAmount/pendingFreeUsed).
-  const remainingBefore = useMemo(() => computeFreeRemaining(state), [state]);
-  const feeApplies = remainingBefore <= 0;
+  // stageWithdrawAmount/pendingFreeUsed). Sourced from the server preview
+  // above rather than computed from local transaction history.
+  const remainingBefore = withdrawalStatus?.free_withdrawals_remaining ?? null;
+  const feeApplies = withdrawalStatus !== null && !withdrawalStatus.next_withdrawal_is_free;
   const isLastFree = !feeApplies && remainingBefore === 1;
   const showRedWarning = feeApplies || isLastFree;
   const warnText = feeApplies
     ? "ถอนเกินสิทธิ์ฟรีแล้ว หักค่าธรรมเนียม 2%"
     : "ใช้สิทธิ์ถอนฟรีหมดแล้ว ครั้งต่อไปจะเสียค่าธรรมเนียม 2%";
-  const badgeText = `เหลือสิทธิ์ถอนฟรี: ${Math.max(0, remainingBefore - 1)} ครั้ง/ปี`;
+  const badgeText = remainingBefore !== null ? `เหลือสิทธิ์ถอนฟรี: ${Math.max(0, remainingBefore - 1)} ครั้ง/ปี` : "";
 
   // A full withdrawal that also empties the goal closes it (state.goal
   // becomes null) as soon as the context updates — but the user still needs
   // to see the success receipt. Only redirect away before that point.
   if (!state.goal && step !== "success") return <Navigate to="/kapook" replace />;
   const goal = state.goal;
-  const canWithdraw = !!goal && amount > 0 && amount <= goal.availableBalance;
-  const net = amount - fee;
-  // A withdrawal that empties the piggy closes the goal (state.goal -> null)
-  // as soon as it's confirmed — after that, `withdrawFee`/`fee` above would
-  // recompute against a *goalless* state and (wrongly) come back as 0, since
-  // freeWithdrawalsRemaining() treats "no goal" as "full quota, never used".
-  // The success screen must show the fee that was actually charged, frozen
-  // at confirm time, not whatever `fee` recomputes to afterwards.
-  const successNet = amount - successFee;
+  const canWithdraw = !!goal && amount > 0 && amount <= goal.availableBalance && !noPrimaryAccount;
 
   function openKeypad() {
     if (forcedFull) return;
@@ -115,8 +142,11 @@ export function KapookWithdraw() {
   async function handleFinalConfirm() {
     setError(null);
     try {
-      setSuccessFee(fee);
-      await withdraw(amount);
+      const response = await withdraw(amount);
+      // Frozen from the server's own response - the only source of truth for
+      // what was actually charged, never recomputed client-side.
+      setSuccessFee(Number(response.fee_amount));
+      setSuccessNet(Number(response.net_credited));
       setSuccessAt(new Date().toISOString());
       setConfirmOpen(false);
       setStep("success");
@@ -134,6 +164,7 @@ export function KapookWithdraw() {
         <div className="flex flex-col gap-1" style={{ minHeight: "calc(100% - 62px)" }}>
           <div className="flex flex-1 flex-col gap-1 p-4">
             {loadError && <p className="error-box">{loadError}</p>}
+            {noPrimaryAccount && <p className="error-box">{NO_PRIMARY_ACCOUNT_MESSAGE}</p>}
             <p className="transfer-label">จาก</p>
             <div className="gradient-card gradient-card--piggy">
               <div className="gradient-card__top">
@@ -216,15 +247,16 @@ export function KapookWithdraw() {
             </div>
             <p className="sheet-panel__title">ยืนยันการถอนเงิน</p>
             <div className="kapook-confirm-highlight">
-              <span className="kapook-confirm-highlight__amount">฿{formatTHB(net)}</span>
+              <span className="kapook-confirm-highlight__amount">฿{formatTHB(amount)}</span>
               <ArrowRightIcon className="h-4 w-4" />
               <span className="kapook-confirm-highlight__label">บัญชีเงินฝากเผื่อเรียก</span>
             </div>
-            {fee > 0 && (
-              <p className="kapook-confirm-fee-note">
-                ยอดถอน ฿{formatTHB(amount)} หักค่าธรรมเนียม 2% (฿{formatTHB(fee)})
-              </p>
-            )}
+            {/* No exact fee amount is shown here: the backend has no
+                quote-style endpoint that returns the fee for an arbitrary
+                amount before the withdrawal actually executes, and the
+                frontend does no fee math of its own - see the ticket's
+                final report. The badge/warning below still tells the
+                customer, server-sourced, whether a fee applies at all. */}
             {showRedWarning ? <div className="kapook-confirm-warning">{warnText}</div> : <div className="kapook-confirm-badge">{badgeText}</div>}
             {error && (
               <p className="message" data-testid="message">

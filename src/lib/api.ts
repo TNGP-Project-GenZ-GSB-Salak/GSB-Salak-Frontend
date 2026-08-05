@@ -6,6 +6,8 @@ import type {
   Holding,
   KapookGoalResponse,
   KapookTermsStatus,
+  KapookWithdrawalStatusResponse,
+  KapookWithdrawResponse,
   LoginResult,
   SalakProduct,
   Transaction,
@@ -146,6 +148,30 @@ export function createKapookGoal(input: {
 // state, not an error (GET /kapook/goals/active's 200-with-null contract).
 export function getActiveKapookGoal(accountId: string): Promise<KapookGoalResponse | null> {
   return apiFetch<KapookGoalResponse | null>(`/kapook/goals/active?account_id=${accountId}`);
+}
+
+// Preview only - GET /kapook/goals/withdrawal-status, no side effects.
+export function getKapookWithdrawalStatus(kapookAccountId: string): Promise<KapookWithdrawalStatusResponse> {
+  return apiFetch<KapookWithdrawalStatusResponse>(
+    `/kapook/goals/withdrawal-status?kapook_account_id=${kapookAccountId}`,
+  );
+}
+
+// savings_account_id must be the caller's own primary account (บัญชีคู่โอน),
+// resolved by the caller before this is ever invoked (see
+// KapookContext.withdraw) - never a customer-chosen destination. The
+// backend's withdrawRequest still requires this field on the wire
+// (internal/kapook/http/dto.go hasn't dropped it), so it can't be omitted
+// here even though nothing lets the customer pick it.
+export function withdrawFromKapook(input: {
+  kapook_account_id: string;
+  savings_account_id: string;
+  amount: string;
+}): Promise<KapookWithdrawResponse> {
+  return apiFetch<KapookWithdrawResponse>("/kapook/goals/withdraw", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 export function listTransactions(
