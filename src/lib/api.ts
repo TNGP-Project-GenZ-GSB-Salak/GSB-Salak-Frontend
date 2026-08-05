@@ -4,6 +4,7 @@ import type {
   Account,
   BuySalakResponse,
   Holding,
+  KapookBuyFromGoalResponse,
   KapookGoalResponse,
   KapookTermsStatus,
   KapookWithdrawalStatusResponse,
@@ -151,24 +152,60 @@ export function getActiveKapookGoal(accountId: string): Promise<KapookGoalRespon
 }
 
 // Preview only - GET /kapook/goals/withdrawal-status, no side effects.
-export function getKapookWithdrawalStatus(kapookAccountId: string): Promise<KapookWithdrawalStatusResponse> {
-  return apiFetch<KapookWithdrawalStatusResponse>(
-    `/kapook/goals/withdrawal-status?kapook_account_id=${kapookAccountId}`,
-  );
+// Passing amount also gets back a real quoted_fee_amount/quoted_net_amount
+// for that candidate amount (the backend computes it with the exact same
+// logic Withdraw itself uses, so it can never disagree with what gets
+// charged) - omit it to get just the free/fee boolean signal.
+export function getKapookWithdrawalStatus(
+  kapookAccountId: string,
+  amount?: string,
+): Promise<KapookWithdrawalStatusResponse> {
+  const params = new URLSearchParams({ kapook_account_id: kapookAccountId });
+  if (amount !== undefined) params.set("amount", amount);
+  return apiFetch<KapookWithdrawalStatusResponse>(`/kapook/goals/withdrawal-status?${params.toString()}`);
 }
 
-// savings_account_id must be the caller's own primary account (บัญชีคู่โอน),
-// resolved by the caller before this is ever invoked (see
-// KapookContext.withdraw) - never a customer-chosen destination. The
-// backend's withdrawRequest still requires this field on the wire
-// (internal/kapook/http/dto.go hasn't dropped it), so it can't be omitted
-// here even though nothing lets the customer pick it.
+// The destination is never customer-chosen - the backend resolves the
+// caller's primary account (บัญชีคู่โอน) itself and fails loudly with no
+// savings_account_id field on the wire at all.
 export function withdrawFromKapook(input: {
   kapook_account_id: string;
-  savings_account_id: string;
   amount: string;
 }): Promise<KapookWithdrawResponse> {
   return apiFetch<KapookWithdrawResponse>("/kapook/goals/withdraw", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+// amount crosses as a decimal string, matching createKapookGoal's own
+// goal_amount convention - never a number. Response is the same goalResponse
+// shape as createKapookGoal/getActiveKapookGoal (internal/kapook/http/dto.go's
+// toGoalResponse) - the read model's derived fields (available_balance,
+// target_reached, buy_eligible, ...) reflect this deposit immediately, so
+// callers should use them directly rather than recomputing locally.
+export function depositToKapookGoal(input: {
+  kapook_account_id: string;
+  savings_account_id: string;
+  amount: string;
+}): Promise<KapookGoalResponse> {
+  return apiFetch<KapookGoalResponse>("/kapook/goals/deposit", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+// Funds a Salak purchase from the goal's own kapook account balance (POST
+// /kapook/goals/buy) - the Kapook domain's own purchase path, NOT
+// /transactions/buy-salak above. amount crosses as a decimal string,
+// matching every other money field. Deliberately the only door in for
+// Kapook-funded purchases; buySalak stays closed to kapook-type accounts.
+export function buyFromKapookGoal(input: {
+  kapook_account_id: string;
+  salak_account_id: string;
+  amount: string;
+}): Promise<KapookBuyFromGoalResponse> {
+  return apiFetch<KapookBuyFromGoalResponse>("/kapook/goals/buy", {
     method: "POST",
     body: JSON.stringify(input),
   });

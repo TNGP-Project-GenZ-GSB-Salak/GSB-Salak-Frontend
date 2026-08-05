@@ -94,21 +94,20 @@ export function KapookDeposit() {
   }
 
   async function handleConfirm() {
-    if (!canSend) return;
+    if (!canSend || !sourceAccount) return;
     setError(null);
-    const savedBefore = goal.availableBalance;
-    const savedAfter = savedBefore + amount;
-    const justReached = cumulativeCommitted(goal) + amount >= goal.targetAmount;
-    const crossedMinimum = !state.hideSalakSuggestion && !goal.salakSuggestionSeen && savedBefore < 1000 && savedAfter >= 1000;
     try {
-      await deposit(amount);
+      // justReachedGoal/showSalakSuggestion come straight from the server's
+      // response to this deposit (target_reached/buy_eligible) - not
+      // recomputed from local balances.
+      const { justReachedGoal, showSalakSuggestion } = await deposit(sourceAccount.id, amount);
       const celebrate: KapookCelebrateState = {
         celebrate: true,
         celebrateAmount: amount,
         celebrateSticker: CELEBRATE_STICKERS[Math.floor(Math.random() * CELEBRATE_STICKERS.length)],
-        showSuggestion: crossedMinimum,
-        pendingGoalReachedAfterSuggestion: crossedMinimum && justReached,
-        justReachedGoal: !crossedMinimum && justReached,
+        showSuggestion: showSalakSuggestion,
+        pendingGoalReachedAfterSuggestion: showSalakSuggestion && justReachedGoal,
+        justReachedGoal: !showSalakSuggestion && justReachedGoal,
       };
       navigate("/kapook", { replace: true, state: celebrate });
     } catch (err) {

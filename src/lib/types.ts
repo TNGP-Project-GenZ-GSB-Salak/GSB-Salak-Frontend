@@ -100,15 +100,18 @@ export interface KapookGoalResponse {
 // Hand-mirrors internal/kapook/http/dto.go's withdrawalStatusResponse - a
 // read-time preview of the goal's free-withdrawal allowance, not a lock
 // (Withdraw itself re-checks under lock and can still land on a different
-// outcome for a concurrent request). next_withdrawal_is_free is the only
-// signal KapookWithdraw.tsx shows before confirming; the fee amount itself
-// is never previewed client-side (see KapookWithdrawResponse below).
+// outcome for a concurrent request). quoted_fee_amount/quoted_net_amount are
+// only present when the request carried an amount query param - the exact
+// fee/net that amount would incur right now, computed by the same logic
+// Withdraw itself uses, so it can never disagree with what gets charged.
 export interface KapookWithdrawalStatusResponse {
   window_start: string;
   window_end: string;
   free_withdrawals_used: number;
   free_withdrawals_remaining: number;
   next_withdrawal_is_free: boolean;
+  quoted_fee_amount?: string;
+  quoted_net_amount?: string;
 }
 
 // Hand-mirrors internal/kapook/http/dto.go's withdrawResponse verbatim.
@@ -122,6 +125,27 @@ export interface KapookWithdrawResponse {
   fee_charged: boolean;
   fee_amount: string;
   net_credited: string;
+}
+
+// Hand-mirrors internal/kapook/http/dto.go's buyFromGoalResponse verbatim -
+// the Kapook-funded counterpart to BuySalakResponse above. reference_id
+// through maturity_date match BuySalakResponse's own field names 1:1 since
+// both wrap the same transaction.BuySalakReceipt server-side; goal and
+// goal_completed are what this response adds on top, so a caller can read
+// the post-purchase goal state (available_balance, purchased_units/count,
+// is_active) and the completed flag straight from the response instead of
+// re-deriving either client-side.
+export interface KapookBuyFromGoalResponse {
+  goal: KapookGoalResponse;
+  goal_completed: boolean;
+  reference_id: string;
+  product_name: string;
+  units: number;
+  ticket_start: string;
+  ticket_end: string;
+  amount: string;
+  purchase_date: string;
+  maturity_date: string;
 }
 
 export type LedgerEntryType = "debit" | "credit";

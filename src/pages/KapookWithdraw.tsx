@@ -251,12 +251,11 @@ export function KapookWithdraw() {
               <ArrowRightIcon className="h-4 w-4" />
               <span className="kapook-confirm-highlight__label">บัญชีเงินฝากเผื่อเรียก</span>
             </div>
-            {/* No exact fee amount is shown here: the backend has no
-                quote-style endpoint that returns the fee for an arbitrary
-                amount before the withdrawal actually executes, and the
-                frontend does no fee math of its own - see the ticket's
-                final report. The badge/warning below still tells the
-                customer, server-sourced, whether a fee applies at all. */}
+            {/* No exact fee amount is shown here - the backend now has a
+                quote param (GET .../withdrawal-status?amount=...) that
+                could supply one, but showing it was declined for this
+                screen; the badge/warning below still tells the customer,
+                server-sourced, whether a fee applies at all. */}
             {showRedWarning ? <div className="kapook-confirm-warning">{warnText}</div> : <div className="kapook-confirm-badge">{badgeText}</div>}
             {error && (
               <p className="message" data-testid="message">

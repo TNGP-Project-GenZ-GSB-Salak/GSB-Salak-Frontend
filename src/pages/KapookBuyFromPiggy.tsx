@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
-import type { Account, BuySalakResponse, SalakProduct } from "../lib/types";
-import { formatTHB, maskAccountNumber } from "../lib/format";
-import { findPrimaryAccount } from "../lib/accounts";
+import type { Account, KapookBuyFromGoalResponse, KapookGoalResponse, SalakProduct } from "../lib/types";
+import { formatTHB, formatDate, maskAccountNumber } from "../lib/format";
 import { AppShell } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
 import { Card } from "../components/Card";
@@ -13,6 +12,7 @@ import { Keypad } from "../components/Keypad";
 import { SlideToConfirm } from "../components/SlideToConfirm";
 import { useAuth } from "../context/AuthContext";
 import { useKapook } from "../context/KapookContext";
+import { messageForError } from "../lib/kapookErrorMessages";
 import mymoLogo from "../assets/mymo-logo.png";
 
 type Step = "amount" | "confirm" | "success";
@@ -23,9 +23,9 @@ const TAG_OPTIONS = ["ซื้อสลาก", "ซื้อสลากให
 // ones BuySalak.tsx's real "ซื้อเลย" flow already builds via its own local
 // PartyRow/Row — duplicated here rather than importing from that file,
 // since it's the one screen this codebase must never touch): "จาก"/"ถึง"
-// avatar rows for the real savings + salak accounts (money still visibly
-// moves through the user's real accounts even though it was staged in the
-// piggy first), the product period + unit count, and a date/time stamp.
+// avatar rows for the real kapook + salak accounts (the purchase is funded
+// from the kapook balance itself, not a savings account), the product
+// period + unit count, and a date/time stamp.
 function formatDateTime(date: Date): string {
   const dateStr = new Intl.DateTimeFormat("th-TH-u-ca-buddhist", { day: "2-digit", month: "short", year: "numeric" }).format(date);
   const timeStr = new Intl.DateTimeFormat("th-TH", { hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
@@ -65,8 +65,13 @@ export function KapookBuyFromPiggy() {
   const { user } = useAuth();
   const { state, confirmGoalPurchase } = useKapook();
   const [product, setProduct] = useState<SalakProduct | null>(null);
-  const [fundingAccount, setFundingAccount] = useState<Account | null>(null);
   const [salakAccount, setSalakAccount] = useState<Account | null>(null);
+  // The server-fed goal snapshot (GET /kapook/goals/active) - same read
+  // model KapookTracker.tsx uses - is the source of truth for
+  // available_balance/buy_eligible here, not state.goal's local-fiction
+  // numbers (which only get refreshed by this screen's own purchase, not by
+  // deposit/withdraw). undefined = still loading.
+  const [serverGoal, setServerGoal] = useState<KapookGoalResponse | null | undefined>(undefined);
   const [step, setStep] = useState<Step>("amount");
   const [amount, setAmount] = useState(0);
   const [keypadOpen, setKeypadOpen] = useState(false);
@@ -75,7 +80,7 @@ export function KapookBuyFromPiggy() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [receipt, setReceipt] = useState<BuySalakResponse | null>(null);
+  const [receipt, setReceipt] = useState<KapookBuyFromGoalResponse | null>(null);
   const [successAt, setSuccessAt] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -84,13 +89,23 @@ export function KapookBuyFromPiggy() {
     Promise.all([api.getSalakProduct(state.goal.productId), api.listAccounts()]).then(([productData, accounts]) => {
       if (cancelled) return;
       setProduct(productData);
-      setFundingAccount(findPrimaryAccount(accounts) ?? null);
       setSalakAccount(accounts.find((a) => a.type === "salak") ?? null);
     });
     return () => {
       cancelled = true;
     };
   }, [state.goal?.productId]);
+
+  useEffect(() => {
+    if (!state.account) return;
+    let cancelled = false;
+    api.getActiveKapookGoal(state.account.id).then((g) => {
+      if (!cancelled) setServerGoal(g);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [state.account]);
 
   function toggleTag(tag: string) {
     setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
@@ -102,11 +117,17 @@ export function KapookBuyFromPiggy() {
   // purchase that just happened. Only redirect away before that point.
   if (!state.goal && step !== "success") return <Navigate to="/kapook" replace />;
   const goal = state.goal;
+  // available_balance and buy_eligible come from the server's own goal
+  // snapshot (GoalSnapshot, same read model KapookTracker.tsx uses) - not
+  // recomputed client-side. Coerced to Number only for display/capping, the
+  // same way KapookTracker already does.
+  const availableBalance = serverGoal ? Number(serverGoal.available_balance) : 0;
   // Matches designs/…V.5.html's `salakAmountNotMultipleError`: the amount is
   // NOT silently rounded down — it's validated, and "เลื่อนเพื่อส่ง" stays
   // disabled with an error message until it's an exact multiple of ฿1,000.
   const notMultipleOf1000 = amount > 0 && amount % 1000 !== 0;
-  const canSend = !!goal && amount > 0 && amount <= goal.availableBalance && !notMultipleOf1000;
+  const canSend =
+    !!goal && !!serverGoal?.buy_eligible && amount > 0 && amount <= availableBalance && !notMultipleOf1000;
   const units = product ? Math.floor(amount / Number(product.unit_price)) : 0;
 
   function openKeypad() {
@@ -122,7 +143,7 @@ export function KapookBuyFromPiggy() {
   function applyKeypadValue(rawDigits: string) {
     setKeypadInput(rawDigits);
     const n = parseInt(rawDigits || "0", 10) || 0;
-    setAmount(Math.min(n, goal?.availableBalance ?? 0));
+    setAmount(Math.min(n, availableBalance));
   }
 
   function keypadCancel() {
@@ -139,7 +160,7 @@ export function KapookBuyFromPiggy() {
       setSuccessAt(new Date());
       setStep("success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ทำรายการไม่สำเร็จ");
+      setError(messageForError(err));
     } finally {
       setSubmitting(false);
     }
@@ -161,7 +182,7 @@ export function KapookBuyFromPiggy() {
                   <p className="gradient-card__label">บัญชีกระปุกออมสลาก</p>
                   <p className="gradient-card__meta mt-1">{state.account?.accountNumber ?? ""}</p>
                 </div>
-                <p className="gradient-card__balance mt-1">฿{formatTHB((goal?.availableBalance ?? 0))}</p>
+                <p className="gradient-card__balance mt-1">฿{formatTHB(availableBalance)}</p>
               </div>
             </div>
 
@@ -188,7 +209,7 @@ export function KapookBuyFromPiggy() {
                 กรุณาระบุจำนวนเป็นจำนวนเต็มพันบาท (เช่น 1,000, 2,000)
               </p>
             ) : (
-              <p className="text-muted text-center">ยอดพร้อมฝากสลาก ฿{formatTHB(goal?.availableBalance ?? 0)}</p>
+              <p className="text-muted text-center">ยอดพร้อมฝากสลาก ฿{formatTHB(availableBalance)}</p>
             )}
 
             <div className="transfer-tags">
@@ -225,7 +246,7 @@ export function KapookBuyFromPiggy() {
           </div>
 
           <Card>
-            <PartyRow label="จาก" name={user?.full_name ?? ""} mask={fundingAccount ? maskAccountNumber(fundingAccount.account_number) : ""} />
+            <PartyRow label="จาก" name={user?.full_name ?? ""} mask={state.account ? maskAccountNumber(state.account.accountNumber) : ""} />
             <PartyRow label="ถึง" name={user?.full_name ?? ""} mask={salakAccount ? maskAccountNumber(salakAccount.account_number) : ""} />
             <Row label={`ฝากสลากดิจิทัล ${product?.term_months ?? ""} เดือน`} value={product?.name ?? ""} />
             <Row label="จำนวนหน่วย" value={units.toLocaleString("en-US")} />
@@ -248,12 +269,13 @@ export function KapookBuyFromPiggy() {
           <p className="receipt-summary__amount">฿{formatTHB(receipt.amount)}</p>
           <span className="chip chip--selected inline-block">ฝากผ่านกระปุกออมก่อนซื้อสลาก</span>
           <Card className="mt-3 w-full">
-            <PartyRow label="จาก" name={user?.full_name ?? ""} mask={fundingAccount ? maskAccountNumber(fundingAccount.account_number) : ""} />
+            <PartyRow label="จาก" name={user?.full_name ?? ""} mask={state.account ? maskAccountNumber(state.account.accountNumber) : ""} />
             <PartyRow label="ถึง" name={user?.full_name ?? ""} mask={salakAccount ? maskAccountNumber(salakAccount.account_number) : ""} />
             <Row label="รหัสอ้างอิง" value={receipt.reference_id} />
             <Row label={`ฝากสลากดิจิทัล ${product?.term_months ?? ""} เดือน`} value={receipt.product_name} />
             <Row label="หมายเลขสลาก" value={`${receipt.ticket_start} – ${receipt.ticket_end}`} />
             <Row label="จำนวนหน่วย" value={String(receipt.units)} />
+            <Row label="วันครบกำหนด" value={formatDate(receipt.maturity_date)} />
           </Card>
           <div className="mt-5 w-full">
             <Button onClick={() => navigate("/salak")}>เสร็จสิ้น</Button>
