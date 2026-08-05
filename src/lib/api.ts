@@ -4,6 +4,7 @@ import type {
   Account,
   BuySalakResponse,
   Holding,
+  KapookBuyFromGoalResponse,
   KapookGoalResponse,
   KapookTermsStatus,
   LoginResult,
@@ -160,6 +161,22 @@ export function depositToKapookGoal(input: {
   amount: string;
 }): Promise<KapookGoalResponse> {
   return apiFetch<KapookGoalResponse>("/kapook/goals/deposit", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+// Funds a Salak purchase from the goal's own kapook account balance (POST
+// /kapook/goals/buy) - the Kapook domain's own purchase path, NOT
+// /transactions/buy-salak above. amount crosses as a decimal string,
+// matching every other money field. Deliberately the only door in for
+// Kapook-funded purchases; buySalak stays closed to kapook-type accounts.
+export function buyFromKapookGoal(input: {
+  kapook_account_id: string;
+  salak_account_id: string;
+  amount: string;
+}): Promise<KapookBuyFromGoalResponse> {
+  return apiFetch<KapookBuyFromGoalResponse>("/kapook/goals/buy", {
     method: "POST",
     body: JSON.stringify(input),
   });
