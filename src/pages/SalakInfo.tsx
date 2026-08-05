@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
 import { Button } from "../components/Button";
 import { PigMascot } from "../components/PigMascot";
+import { CURRENT_ROUND_BY_TERM_MONTHS } from "../lib/salakRounds";
 
 const PIG_TAP_DURATION_MS = 500;
 
@@ -21,7 +22,7 @@ const COINS = [
 const TABLE_COLUMNS = ["1 ปี", "2 ปี"] as const;
 
 const TABLE_ROWS = [
-  { label: "งวดปัจจุบัน", values: ["635", "274"] },
+  { label: "งวดปัจจุบัน", values: [String(CURRENT_ROUND_BY_TERM_MONTHS[12]), String(CURRENT_ROUND_BY_TERM_MONTHS[24])] },
   { label: "รางวัลที่ 1", values: ["10 ล้าน", "30 ล้าน"] },
   { label: "รางวัลที่ 2", values: ["1 ล้าน", "1 ล้าน"] },
   { label: "รางวัลที่ 3 (หมุน 5 ครั้ง)", values: ["10,000", "10,000"] },

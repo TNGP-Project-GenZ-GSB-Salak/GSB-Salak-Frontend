@@ -201,7 +201,11 @@ export function Salak() {
             {holdings === null && <p className="text-muted">กำลังโหลด...</p>}
             {holdings?.length === 0 && <p className="empty-state">คุณยังไม่มีรายการสลาก</p>}
             {holdings?.map((holding) => (
-              <HoldingCard key={holding.id} holding={holding} />
+              <HoldingCard
+                key={holding.id}
+                holding={holding}
+                product={products?.find((p) => p.id === holding.product_id)}
+              />
             ))}
           </div>
         </section>
