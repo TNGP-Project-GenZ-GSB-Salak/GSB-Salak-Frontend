@@ -27,6 +27,24 @@ export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+// Thrown by apiFetch on a non-2xx response. `code` mirrors the backend
+// envelope's optional machine-readable `code` field (undefined when the
+// server didn't assign one) - see lib/kapookErrorMessages.ts for how a
+// screen maps this to Thai copy. `message` stays exactly the backend's raw
+// `error` string, so every existing `err instanceof Error ? err.message :
+// ...` call site keeps working unchanged.
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code?: string;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -41,7 +59,7 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   const body = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new Error(body.error ?? `Request failed with status ${res.status}`);
+    throw new ApiError(body.error ?? `Request failed with status ${res.status}`, res.status, body.code);
   }
   return body.data as T;
 }

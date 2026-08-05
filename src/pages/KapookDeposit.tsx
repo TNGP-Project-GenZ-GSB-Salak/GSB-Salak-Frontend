@@ -12,6 +12,7 @@ import { Keypad } from "../components/Keypad";
 import { SlideToConfirm } from "../components/SlideToConfirm";
 import { CELEBRATE_STICKERS } from "../components/PigMascot";
 import { useKapook } from "../context/KapookContext";
+import { messageForError } from "../lib/kapookErrorMessages";
 import type { KapookCelebrateState } from "./KapookTracker";
 
 // Matches the prototype's goalDeposit screen (prompt/prototype-reference.html):
@@ -34,15 +35,20 @@ export function KapookDeposit() {
   const [amount, setAmount] = useState(0);
   const [keypadInput, setKeypadInput] = useState("");
   const [amountBeforeKeypad, setAmountBeforeKeypad] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    api.listAccounts().then((list) => {
-      if (cancelled) return;
-      const savings = list.filter((a) => a.type === "savings");
-      setAccounts(savings);
-      setSourceAccountId((prev) => prev ?? savings[0]?.id ?? null);
-    });
+    api
+      .listAccounts()
+      .then((list) => {
+        if (cancelled) return;
+        const savings = list.filter((a) => a.type === "savings");
+        setAccounts(savings);
+        setSourceAccountId((prev) => prev ?? savings[0]?.id ?? null);
+      })
+      .catch((err) => !cancelled && setLoadError(messageForError(err, "โหลดข้อมูลไม่สำเร็จ")));
     return () => {
       cancelled = true;
     };
@@ -82,22 +88,27 @@ export function KapookDeposit() {
     setKeypadOpen(false);
   }
 
-  function handleConfirm() {
+  async function handleConfirm() {
     if (!canSend) return;
+    setError(null);
     const savedBefore = goal.savedAmount;
     const savedAfter = savedBefore + amount;
     const justReached = cumulativeCommitted(goal) + amount >= goal.targetAmount;
     const crossedMinimum = !state.hideSalakSuggestion && !goal.salakSuggestionSeen && savedBefore < 1000 && savedAfter >= 1000;
-    deposit(amount);
-    const celebrate: KapookCelebrateState = {
-      celebrate: true,
-      celebrateAmount: amount,
-      celebrateSticker: CELEBRATE_STICKERS[Math.floor(Math.random() * CELEBRATE_STICKERS.length)],
-      showSuggestion: crossedMinimum,
-      pendingGoalReachedAfterSuggestion: crossedMinimum && justReached,
-      justReachedGoal: !crossedMinimum && justReached,
-    };
-    navigate("/kapook", { replace: true, state: celebrate });
+    try {
+      await deposit(amount);
+      const celebrate: KapookCelebrateState = {
+        celebrate: true,
+        celebrateAmount: amount,
+        celebrateSticker: CELEBRATE_STICKERS[Math.floor(Math.random() * CELEBRATE_STICKERS.length)],
+        showSuggestion: crossedMinimum,
+        pendingGoalReachedAfterSuggestion: crossedMinimum && justReached,
+        justReachedGoal: !crossedMinimum && justReached,
+      };
+      navigate("/kapook", { replace: true, state: celebrate });
+    } catch (err) {
+      setError(messageForError(err));
+    }
   }
 
   return (
@@ -106,6 +117,7 @@ export function KapookDeposit() {
 
       <div className="flex flex-col gap-1" style={{ minHeight: "calc(100% - 62px)" }}>
         <div className="flex flex-1 flex-col gap-1 p-4">
+          {loadError && <p className="error-box">{loadError}</p>}
           <button type="button" onClick={() => setSourceSheetOpen(true)} className="transfer-label--clickable">
             <span>จาก</span>
             <DownChevronIcon className="h-3 w-3" />
@@ -146,6 +158,11 @@ export function KapookDeposit() {
         </div>
 
         <div className="p-5">
+          {error && (
+            <p className="message" data-testid="message">
+              {error}
+            </p>
+          )}
           <SlideToConfirm label="เลื่อนเพื่อออมเงิน" disabled={!canSend} onConfirm={handleConfirm} />
         </div>
       </div>

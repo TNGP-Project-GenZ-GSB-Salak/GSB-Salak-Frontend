@@ -9,6 +9,7 @@ import { BottomSheet } from "../components/BottomSheet";
 import { Keypad } from "../components/Keypad";
 import { Button } from "../components/Button";
 import { useKapook } from "../context/KapookContext";
+import { messageForError } from "../lib/kapookErrorMessages";
 
 const PRESET_AMOUNTS = [1000, 5000, 10000, 50000, 100000, 500000];
 
@@ -25,6 +26,7 @@ export function KapookGoalSetup() {
   const { state: kapookState, createGoal } = useKapook();
   const [products, setProducts] = useState<SalakProduct[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [amount, setAmount] = useState<number | null>(null);
   const [keypadOpen, setKeypadOpen] = useState(false);
   const [keypadInput, setKeypadInput] = useState("");
@@ -34,7 +36,7 @@ export function KapookGoalSetup() {
     api
       .listSalakProducts()
       .then((list) => !cancelled && setProducts(list))
-      .catch((err) => !cancelled && setLoadError(err instanceof Error ? err.message : "โหลดข้อมูลไม่สำเร็จ"));
+      .catch((err) => !cancelled && setLoadError(messageForError(err, "โหลดข้อมูลไม่สำเร็จ")));
     return () => {
       cancelled = true;
     };
@@ -50,10 +52,15 @@ export function KapookGoalSetup() {
     return <Navigate to="/kapook/open" state={{ productId: requestedProductId }} replace />;
   }
 
-  function handleConfirm() {
+  async function handleConfirm() {
     if (!amount || !product) return;
-    createGoal(amount, product.id);
-    navigate("/kapook", { replace: true });
+    setError(null);
+    try {
+      await createGoal(amount, product.id);
+      navigate("/kapook", { replace: true });
+    } catch (err) {
+      setError(messageForError(err));
+    }
   }
 
   const confirmDisabled = !amount || !product;
@@ -99,6 +106,11 @@ export function KapookGoalSetup() {
         </div>
 
         <div className="mt-4">
+          {error && (
+            <p className="message" data-testid="message">
+              {error}
+            </p>
+          )}
           <Button disabled={confirmDisabled} onClick={handleConfirm} data-testid="goal-confirm-button">
             ยืนยัน
           </Button>

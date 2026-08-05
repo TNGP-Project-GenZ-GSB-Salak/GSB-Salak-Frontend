@@ -6,6 +6,7 @@ import { Button } from "../components/Button";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useKapook } from "../context/KapookContext";
 import type { KycInfo } from "../lib/kapookTypes";
+import { messageForError } from "../lib/kapookErrorMessages";
 
 type Step = "idcard" | "review" | "terms" | "success";
 
@@ -41,6 +42,7 @@ export function KapookOnboarding() {
   const [step, setStep] = useState<Step>("idcard");
   const [idNumber, setIdNumber] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function handleConfirmReview() {
     setDialogOpen(true);
@@ -51,10 +53,15 @@ export function KapookOnboarding() {
     setStep("terms");
   }
 
-  function handleAcceptTerms() {
-    const kyc: KycInfo = { idNumber, ...MOCK_PROFILE };
-    openAccount(kyc);
-    setStep("success");
+  async function handleAcceptTerms() {
+    setError(null);
+    try {
+      const kyc: KycInfo = { idNumber, ...MOCK_PROFILE };
+      await openAccount(kyc);
+      setStep("success");
+    } catch (err) {
+      setError(messageForError(err));
+    }
   }
 
   return (
@@ -177,6 +184,11 @@ export function KapookOnboarding() {
           <p className="terms-page__clause">4) ในกรณีที่ผู้ฝากไม่สามารถออมเงินได้ครบตามจำนวนหรือเงื่อนไขที่กำหนดไว้ จะไม่มีการหักค่าธรรมเนียมหรือค่าปรับใดๆ ทั้งสิ้น</p>
 
           <div className="absolute inset-x-0 bottom-0 p-5">
+            {error && (
+              <p className="message" data-testid="message">
+                {error}
+              </p>
+            )}
             <Button onClick={handleAcceptTerms} data-testid="accept-terms">
               ถัดไป
             </Button>

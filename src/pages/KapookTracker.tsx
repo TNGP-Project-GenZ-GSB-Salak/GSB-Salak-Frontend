@@ -13,6 +13,7 @@ import { Countdown } from "../components/Countdown";
 import { BottomSheet } from "../components/BottomSheet";
 import { PigMascot, PartyBackdrop, CelebrateStickerIcon, TipCloud, TipGround, type CelebrateSticker } from "../components/PigMascot";
 import { useKapook } from "../context/KapookContext";
+import { messageForError } from "../lib/kapookErrorMessages";
 
 // State handed from KapookDeposit.tsx's slide-to-confirm success (matches
 // prompt/prototype-reference.html's `completeSlideAction`, which navigates
@@ -49,6 +50,7 @@ export function KapookTracker() {
   const location = useLocation();
   const { state, freeWithdrawalsRemaining, hideSalakSuggestionForever } = useKapook();
   const [products, setProducts] = useState<SalakProduct[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [termsSheetOpen, setTermsSheetOpen] = useState(false);
 
   const celebrateState = location.state as KapookCelebrateState | null;
@@ -77,7 +79,10 @@ export function KapookTracker() {
 
   useEffect(() => {
     let cancelled = false;
-    api.listSalakProducts().then((list) => !cancelled && setProducts(list));
+    api
+      .listSalakProducts()
+      .then((list) => !cancelled && setProducts(list))
+      .catch((err) => !cancelled && setLoadError(messageForError(err, "โหลดข้อมูลไม่สำเร็จ")));
     return () => {
       cancelled = true;
     };
@@ -110,6 +115,7 @@ export function KapookTracker() {
       <PageHeader title="ออมก่อนซื้อสลาก" variant="close" onAction={() => navigate("/")} />
 
       <div className="flex flex-col px-4 pb-4">
+        {loadError && <p className="error-box">{loadError}</p>}
         <div className="kapook-hero-card">
           {reached ? (
             <PartyBackdrop />

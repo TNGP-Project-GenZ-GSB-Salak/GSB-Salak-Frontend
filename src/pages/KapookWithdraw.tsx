@@ -11,6 +11,7 @@ import { SlideToConfirm } from "../components/SlideToConfirm";
 import { BottomSheet } from "../components/BottomSheet";
 import { Keypad } from "../components/Keypad";
 import { useKapook } from "../context/KapookContext";
+import { messageForError } from "../lib/kapookErrorMessages";
 
 type Step = "amount" | "success";
 
@@ -39,12 +40,17 @@ export function KapookWithdraw() {
   const [amountBeforeKeypad, setAmountBeforeKeypad] = useState(0);
   const [successAt, setSuccessAt] = useState<string | null>(null);
   const [successFee, setSuccessFee] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    api.listAccounts().then((list) => {
-      if (!cancelled) setDestAccount(list.find((a) => a.type === "savings") ?? null);
-    });
+    api
+      .listAccounts()
+      .then((list) => {
+        if (!cancelled) setDestAccount(list.find((a) => a.type === "savings") ?? null);
+      })
+      .catch((err) => !cancelled && setLoadError(messageForError(err, "โหลดข้อมูลไม่สำเร็จ")));
     return () => {
       cancelled = true;
     };
@@ -105,12 +111,17 @@ export function KapookWithdraw() {
     setKeypadOpen(false);
   }
 
-  function handleFinalConfirm() {
-    setSuccessFee(fee);
-    withdraw(amount);
-    setSuccessAt(new Date().toISOString());
-    setConfirmOpen(false);
-    setStep("success");
+  async function handleFinalConfirm() {
+    setError(null);
+    try {
+      setSuccessFee(fee);
+      await withdraw(amount);
+      setSuccessAt(new Date().toISOString());
+      setConfirmOpen(false);
+      setStep("success");
+    } catch (err) {
+      setError(messageForError(err));
+    }
   }
 
   return (
@@ -121,6 +132,7 @@ export function KapookWithdraw() {
       {step === "amount" && (
         <div className="flex flex-col gap-1" style={{ minHeight: "calc(100% - 62px)" }}>
           <div className="flex flex-1 flex-col gap-1 p-4">
+            {loadError && <p className="error-box">{loadError}</p>}
             <p className="transfer-label">จาก</p>
             <div className="gradient-card gradient-card--piggy">
               <div className="gradient-card__top">
@@ -213,6 +225,11 @@ export function KapookWithdraw() {
               </p>
             )}
             {showRedWarning ? <div className="kapook-confirm-warning">{warnText}</div> : <div className="kapook-confirm-badge">{badgeText}</div>}
+            {error && (
+              <p className="message" data-testid="message">
+                {error}
+              </p>
+            )}
             <div className="mt-4 flex gap-2">
               <div className="flex-1">
                 <Button variant="secondary" onClick={() => setConfirmOpen(false)} data-testid="withdraw-confirm-cancel">
