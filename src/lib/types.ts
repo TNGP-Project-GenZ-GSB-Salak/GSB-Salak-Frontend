@@ -97,6 +97,36 @@ export interface KapookGoalResponse {
   buy_eligible: boolean;
 }
 
+// Hand-mirrors internal/kapook/http/dto.go's withdrawalStatusResponse - a
+// read-time preview of the goal's free-withdrawal allowance, not a lock
+// (Withdraw itself re-checks under lock and can still land on a different
+// outcome for a concurrent request). quoted_fee_amount/quoted_net_amount are
+// only present when the request carried an amount query param - the exact
+// fee/net that amount would incur right now, computed by the same logic
+// Withdraw itself uses, so it can never disagree with what gets charged.
+export interface KapookWithdrawalStatusResponse {
+  window_start: string;
+  window_end: string;
+  free_withdrawals_used: number;
+  free_withdrawals_remaining: number;
+  next_withdrawal_is_free: boolean;
+  quoted_fee_amount?: string;
+  quoted_net_amount?: string;
+}
+
+// Hand-mirrors internal/kapook/http/dto.go's withdrawResponse verbatim.
+// fee_amount is "0" when fee_charged is false. net_credited is what the
+// destination account actually received (amount minus fee_amount) - the
+// only server-computed truth for what a withdrawal cost; never recompute
+// this client-side.
+export interface KapookWithdrawResponse {
+  goal: KapookGoalResponse;
+  amount: string;
+  fee_charged: boolean;
+  fee_amount: string;
+  net_credited: string;
+}
+
 // Hand-mirrors internal/kapook/http/dto.go's buyFromGoalResponse verbatim -
 // the Kapook-funded counterpart to BuySalakResponse above. reference_id
 // through maturity_date match BuySalakResponse's own field names 1:1 since

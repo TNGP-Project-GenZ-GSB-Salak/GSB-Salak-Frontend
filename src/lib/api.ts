@@ -7,6 +7,8 @@ import type {
   KapookBuyFromGoalResponse,
   KapookGoalResponse,
   KapookTermsStatus,
+  KapookWithdrawalStatusResponse,
+  KapookWithdrawResponse,
   LoginResult,
   SalakProduct,
   Transaction,
@@ -147,6 +149,33 @@ export function createKapookGoal(input: {
 // state, not an error (GET /kapook/goals/active's 200-with-null contract).
 export function getActiveKapookGoal(accountId: string): Promise<KapookGoalResponse | null> {
   return apiFetch<KapookGoalResponse | null>(`/kapook/goals/active?account_id=${accountId}`);
+}
+
+// Preview only - GET /kapook/goals/withdrawal-status, no side effects.
+// Passing amount also gets back a real quoted_fee_amount/quoted_net_amount
+// for that candidate amount (the backend computes it with the exact same
+// logic Withdraw itself uses, so it can never disagree with what gets
+// charged) - omit it to get just the free/fee boolean signal.
+export function getKapookWithdrawalStatus(
+  kapookAccountId: string,
+  amount?: string,
+): Promise<KapookWithdrawalStatusResponse> {
+  const params = new URLSearchParams({ kapook_account_id: kapookAccountId });
+  if (amount !== undefined) params.set("amount", amount);
+  return apiFetch<KapookWithdrawalStatusResponse>(`/kapook/goals/withdrawal-status?${params.toString()}`);
+}
+
+// The destination is never customer-chosen - the backend resolves the
+// caller's primary account (บัญชีคู่โอน) itself and fails loudly with no
+// savings_account_id field on the wire at all.
+export function withdrawFromKapook(input: {
+  kapook_account_id: string;
+  amount: string;
+}): Promise<KapookWithdrawResponse> {
+  return apiFetch<KapookWithdrawResponse>("/kapook/goals/withdraw", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 // amount crosses as a decimal string, matching createKapookGoal's own

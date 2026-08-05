@@ -39,6 +39,15 @@ const MESSAGE_BY_STATUS: Record<number, string> = {
 
 const DEFAULT_FALLBACK = "ทำรายการไม่สำเร็จ";
 
+// Thrown client-side, never returned by the backend: no account is flagged
+// is_primary_account for this user, so a withdrawal has nowhere safe to
+// land. Deliberately not auto-resolved to "the one savings account" as a
+// fallback, even though that guess would be unambiguous today - see
+// lib/accounts.ts's findPrimaryAccount and KapookContext.withdraw. Mirrors
+// the existing "go talk to a human" copy pattern used when onboarding hits
+// something it can't resolve on its own (KapookOnboarding.tsx).
+export const NO_PRIMARY_ACCOUNT_MESSAGE = "ไม่พบบัญชีคู่โอนหลักของคุณ กรุณาติดต่อสาขาธนาคารออมสิน";
+
 // Drop-in replacement for the repo-wide `err instanceof Error ? err.message
 // : "..."` catch pattern: an ApiError with a mapped code gets real Thai
 // copy; an ApiError with no mapped code gets a generic per-Kind Thai
