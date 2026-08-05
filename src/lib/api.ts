@@ -7,6 +7,7 @@ import type {
   KapookBuyFromGoalResponse,
   KapookGoalResponse,
   KapookTermsStatus,
+  KapookTransactionResponse,
   KapookWithdrawalStatusResponse,
   KapookWithdrawResponse,
   LoginResult,
@@ -219,4 +220,17 @@ export function listTransactions(
   if (options.limit !== undefined) params.set("limit", String(options.limit));
   if (options.offset !== undefined) params.set("offset", String(options.offset));
   return apiFetch<Transaction[]>(`/transactions?${params.toString()}`);
+}
+
+// Scoped server-side to goalId - a previous goal on the same kapook account
+// never appears here (GET /kapook/goals/transactions). Newest-first,
+// limit/offset paginated the same way listTransactions above is.
+export function listKapookGoalHistory(
+  goalId: string,
+  options: { limit?: number; offset?: number } = {},
+): Promise<KapookTransactionResponse[]> {
+  const params = new URLSearchParams({ goal_id: goalId });
+  if (options.limit !== undefined) params.set("limit", String(options.limit));
+  if (options.offset !== undefined) params.set("offset", String(options.offset));
+  return apiFetch<KapookTransactionResponse[]>(`/kapook/goals/transactions?${params.toString()}`);
 }

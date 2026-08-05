@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
-import type { KapookGoalResponse, SalakProduct } from "../lib/types";
+import type { KapookGoalResponse, KapookTransactionResponse, SalakProduct } from "../lib/types";
 import { formatTHB, formatDate } from "../lib/format";
 import { AppShell } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
@@ -64,6 +64,11 @@ export function KapookTracker() {
   // state, not an error - see GET /kapook/goals/active's 200-with-null
   // contract).
   const [goal, setGoal] = useState<KapookGoalResponse | null | undefined>(undefined);
+  // Scoped server-side to this goal's own id (GET /kapook/goals/transactions)
+  // - null while loading or once the goal itself is null/undefined, so a
+  // closed goal's history can never render under a newly-opened one just
+  // because the fetch hasn't caught up yet.
+  const [history, setHistory] = useState<KapookTransactionResponse[] | null>(null);
 
   const celebrateState = location.state as KapookCelebrateState | null;
   const [celebrate, setCelebrate] = useState(celebrateState?.celebrate ?? false);
@@ -112,6 +117,21 @@ export function KapookTracker() {
     };
   }, [state.account]);
 
+  useEffect(() => {
+    if (!goal) {
+      setHistory(null);
+      return;
+    }
+    let cancelled = false;
+    api
+      .listKapookGoalHistory(goal.id)
+      .then((rows) => !cancelled && setHistory(rows))
+      .catch((err) => !cancelled && setLoadError(messageForError(err, "โหลดข้อมูลไม่สำเร็จ")));
+    return () => {
+      cancelled = true;
+    };
+  }, [goal]);
+
   const productName = useMemo(
     () => products?.find((p) => p.id === goal?.product_id)?.name ?? "",
     [products, goal?.product_id],
@@ -147,13 +167,11 @@ export function KapookTracker() {
     );
   }
 
-  // prompt/README.md: opening a new piggy resets its history (and free-
-  // withdrawal quota) — a closed goal's old transactions must never show up
-  // under the new one, even though they still live in the same flat array.
-  // Reads the local-fiction transaction log (ticket 09 makes this real);
-  // its ids won't match the real goal's until deposit/withdraw/buy are
-  // themselves real, so this list is expected to read empty for now.
-  const goalTransactions = state.transactions.filter((t) => t.goalId === goal.id);
+  // Real, server-scoped history (GET /kapook/goals/transactions?goal_id=...)
+  // - a closed goal's old rows can never show up under a new one, since the
+  // backend filters by goal id itself rather than this screen filtering a
+  // flat client-side array.
+  const goalTransactions = history ?? [];
   const totalCommitted = Number(goal.saving_amount);
   const targetAmount = Number(goal.goal_amount);
   const remainingToTarget = Math.max(0, targetAmount - totalCommitted);
@@ -297,17 +315,24 @@ export function KapookTracker() {
             {goalTransactions.length === 0 && <p className="empty-state">ยังไม่มีประวัติการออม</p>}
             {goalTransactions.map((txn) => {
               const isCredit = txn.type === "deposit";
-              const net = txn.type === "withdraw_with_fee" ? txn.amount - txn.feeAmount : txn.amount;
+              const amount = Number(txn.amount);
+              const net = Number(txn.net_amount);
               const label =
-                txn.type === "deposit" ? "ออมเงิน" : txn.type === "buy_salak" ? "ซื้อสลากแล้ว" : "ถอนเงินคืนบัญชีหลัก";
+                txn.type === "deposit"
+                  ? "ออมเงิน"
+                  : txn.type === "buy_salak"
+                    ? "ซื้อสลากแล้ว"
+                    : txn.type === "salak_expiration"
+                      ? "สลากหมดอายุ"
+                      : "ถอนเงินคืนบัญชีหลัก";
               return (
                 <Card key={txn.id} data-testid="kapook-transaction-row" className="transaction-row">
                   <div>
                     <p className="transaction-row__desc">{label}</p>
-                    <p className="transaction-row__date">{formatDate(txn.createdAt)}</p>
+                    <p className="transaction-row__date">{formatDate(txn.created_at)}</p>
                     {txn.type === "withdraw_with_fee" && (
                       <p className="transaction-row__fee-note">
-                        ถอนเต็ม ฿{formatTHB(txn.amount)} หักค่าธรรมเนียม ฿{formatTHB(txn.feeAmount)}
+                        ถอนเต็ม ฿{formatTHB(amount)} หักค่าธรรมเนียม ฿{formatTHB(Number(txn.fee_amount))}
                       </p>
                     )}
                   </div>
