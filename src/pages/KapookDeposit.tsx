@@ -13,6 +13,7 @@ import { SlideToConfirm } from "../components/SlideToConfirm";
 import { CELEBRATE_STICKERS } from "../components/PigMascot";
 import { useKapook } from "../context/KapookContext";
 import { messageForError } from "../lib/kapookErrorMessages";
+import { findPrimaryAccount } from "../lib/accounts";
 import type { KapookCelebrateState } from "./KapookTracker";
 
 // Matches the prototype's goalDeposit screen (prompt/prototype-reference.html):
@@ -46,7 +47,11 @@ export function KapookDeposit() {
         if (cancelled) return;
         const savings = list.filter((a) => a.type === "savings");
         setAccounts(savings);
-        setSourceAccountId((prev) => prev ?? savings[0]?.id ?? null);
+        // Defaults to the บัญชีคู่โอน when present, since that's the common
+        // case (falls back to whichever savings account came first only if
+        // none is flagged - shouldn't happen for a registered user, but this
+        // picker still needs to show something).
+        setSourceAccountId((prev) => prev ?? findPrimaryAccount(savings)?.id ?? savings[0]?.id ?? null);
       })
       .catch((err) => !cancelled && setLoadError(messageForError(err, "โหลดข้อมูลไม่สำเร็จ")));
     return () => {

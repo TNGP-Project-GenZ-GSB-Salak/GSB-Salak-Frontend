@@ -4,6 +4,7 @@ import * as api from "../lib/api";
 import type { Account } from "../lib/types";
 import { formatTHB, formatDate, maskAccountNumber } from "../lib/format";
 import { freeWithdrawalsRemaining as computeFreeRemaining, withdrawFee } from "../lib/kapookStore";
+import { findPrimaryAccount } from "../lib/accounts";
 import { AppShell } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
 import { Button } from "../components/Button";
@@ -48,7 +49,7 @@ export function KapookWithdraw() {
     api
       .listAccounts()
       .then((list) => {
-        if (!cancelled) setDestAccount(list.find((a) => a.type === "savings") ?? null);
+        if (!cancelled) setDestAccount(findPrimaryAccount(list) ?? null);
       })
       .catch((err) => !cancelled && setLoadError(messageForError(err, "โหลดข้อมูลไม่สำเร็จ")));
     return () => {

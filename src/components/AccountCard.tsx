@@ -5,6 +5,9 @@ import { formatTHB, maskAccountNumber } from "../lib/format";
 const LABELS: Record<Account["type"], string> = {
   savings: "บัญชีเงินฝากเผื่อเรียก",
   salak: "สลากดิจิทัล",
+  // Not rendered via AccountCard today (see Accounts.tsx's kapook filter),
+  // kept for completeness/type-safety.
+  kapook: "กระปุกออมสลาก",
 };
 
 export function AccountCard({ account }: { account: Account }) {

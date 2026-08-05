@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import * as api from "../lib/api";
 import type { Account, BuySalakResponse, SalakProduct } from "../lib/types";
 import { formatTHB, maskAccountNumber } from "../lib/format";
+import { findPrimaryAccount } from "../lib/accounts";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
@@ -48,7 +49,7 @@ export function BuySalak() {
       .then(([productData, accounts]) => {
         if (cancelled) return;
         setProduct(productData);
-        setFundingAccount(accounts.find((a) => a.type === "savings") ?? null);
+        setFundingAccount(findPrimaryAccount(accounts) ?? null);
         setSalakAccount(accounts.find((a) => a.type === "salak") ?? null);
       })
       .catch((err) => !cancelled && setError(err instanceof Error ? err.message : "โหลดข้อมูลไม่สำเร็จ"));

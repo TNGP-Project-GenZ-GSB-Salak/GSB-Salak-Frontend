@@ -10,6 +10,7 @@ import {
 } from "react";
 import * as api from "../lib/api";
 import type { BuySalakResponse } from "../lib/types";
+import { findPrimaryAccount } from "../lib/accounts";
 import {
   freeWithdrawalsRemaining,
   generateAccountNumber,
@@ -200,7 +201,7 @@ export function KapookProvider({ children }: { children: ReactNode }) {
       purchaseInFlight.current = true;
       try {
         const accounts = await api.listAccounts();
-        const fundingAccount = accounts.find((a) => a.type === "savings");
+        const fundingAccount = findPrimaryAccount(accounts);
         const salakAccount = accounts.find((a) => a.type === "salak");
         if (!fundingAccount || !salakAccount) {
           throw new Error("ไม่พบบัญชีเงินฝากหรือบัญชีสลากดิจิทัล");

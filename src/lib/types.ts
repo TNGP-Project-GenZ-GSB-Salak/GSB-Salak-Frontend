@@ -14,7 +14,7 @@ export interface LoginResult {
   token: string;
 }
 
-export type AccountType = "savings" | "salak";
+export type AccountType = "savings" | "salak" | "kapook";
 
 export interface Account {
   id: string;
@@ -22,6 +22,10 @@ export interface Account {
   type: AccountType;
   balance: string;
   currency: string;
+  // The บัญชีคู่โอน - at most one per user, only ever true for a
+  // "savings"-type account. Resolve it via lib/accounts.ts's
+  // findPrimaryAccount rather than filtering by type.
+  is_primary_account: boolean;
   created_at: string;
 }
 

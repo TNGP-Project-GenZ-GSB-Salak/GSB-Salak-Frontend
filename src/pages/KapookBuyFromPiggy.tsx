@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
 import type { Account, BuySalakResponse, SalakProduct } from "../lib/types";
 import { formatTHB, maskAccountNumber } from "../lib/format";
+import { findPrimaryAccount } from "../lib/accounts";
 import { AppShell } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
 import { Card } from "../components/Card";
@@ -83,7 +84,7 @@ export function KapookBuyFromPiggy() {
     Promise.all([api.getSalakProduct(state.goal.productId), api.listAccounts()]).then(([productData, accounts]) => {
       if (cancelled) return;
       setProduct(productData);
-      setFundingAccount(accounts.find((a) => a.type === "savings") ?? null);
+      setFundingAccount(findPrimaryAccount(accounts) ?? null);
       setSalakAccount(accounts.find((a) => a.type === "salak") ?? null);
     });
     return () => {

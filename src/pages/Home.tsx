@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import * as api from "../lib/api";
 import type { Account } from "../lib/types";
 import { formatTHB, maskAccountNumber } from "../lib/format";
+import { findPrimaryAccount } from "../lib/accounts";
 import { useAuth } from "../context/AuthContext";
 import { useKapook } from "../context/KapookContext";
 import { computeAvailableBalance } from "../lib/kapookStore";
@@ -68,7 +69,7 @@ export function Home() {
     let cancelled = false;
     api
       .listAccounts()
-      .then((data) => !cancelled && setSavings(data.find((a) => a.type === "savings") ?? null))
+      .then((data) => !cancelled && setSavings(findPrimaryAccount(data) ?? null))
       .catch((err) => !cancelled && setError(err instanceof Error ? err.message : "โหลดข้อมูลไม่สำเร็จ"));
     return () => {
       cancelled = true;

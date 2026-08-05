@@ -78,16 +78,23 @@ export function Accounts() {
             {accounts?.length === 0 && (
               <p className="empty-state">ยังไม่มีบัญชีสำหรับผู้ใช้นี้ (บัญชีสาธิต: demo / demopass123)</p>
             )}
-            {accounts?.map((account) => (
-              <AccountCard
-                key={account.id}
-                account={
-                  account.type === "savings"
-                    ? { ...account, balance: String(computeAvailableBalance(Number(account.balance), goal)) }
-                    : account
-                }
-              />
-            ))}
+            {/* The kapook-type account is excluded here - registration now opens
+                one for every user (see the account-provisioning ticket), but
+                the piggy card below still renders the client-side fiction, so
+                showing both would duplicate it. Revisit once that card reads
+                the real account instead. */}
+            {accounts
+              ?.filter((account) => account.type !== "kapook")
+              .map((account) => (
+                <AccountCard
+                  key={account.id}
+                  account={
+                    account.is_primary_account
+                      ? { ...account, balance: String(computeAvailableBalance(Number(account.balance), goal)) }
+                      : account
+                  }
+                />
+              ))}
             {kapookState.account && (
               <button
                 type="button"
