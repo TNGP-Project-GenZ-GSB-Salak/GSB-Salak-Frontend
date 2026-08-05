@@ -9,12 +9,12 @@ import {
   type ReactNode,
 } from "react";
 import * as api from "../lib/api";
-import type { BuySalakResponse } from "../lib/types";
+import type { BuySalakResponse, KapookGoalResponse } from "../lib/types";
 import { findPrimaryAccount } from "../lib/accounts";
+import { hasAtMostTwoDecimals } from "../lib/moneyValidation";
 import {
   freeWithdrawalsRemaining,
   generateId,
-  isGoalTargetReached,
   loadState,
   msUntilAutoPurchase,
   saveState,
@@ -52,7 +52,18 @@ interface KapookContextValue {
   // meantime (a deliberate, temporary inconsistency - see the goal-creation
   // ticket's own notes).
   createGoal: (targetAmount: number, productId: string) => Promise<void>;
-  deposit: (amount: number) => void;
+  // Real, server-backed (POST /kapook/goals/deposit) - debits savingsAccountId
+  // and credits the kapook account atomically, then folds the server's own
+  // read-model snapshot (available_balance, salak_amount, target_reached,
+  // buy_eligible, ...) into the local goal rather than recomputing any of it
+  // client-side. Returns whether this specific deposit just reached the
+  // target and/or should surface the once-per-goal "buy Salak now"
+  // suggestion, so the caller can drive its own celebrate/sheet state without
+  // re-deriving either from raw balances.
+  deposit: (
+    savingsAccountId: string,
+    amount: number,
+  ) => Promise<{ justReachedGoal: boolean; showSalakSuggestion: boolean }>;
   withdraw: (amount: number) => void;
   /** Buys Salak using `amount` from the piggy (defaults to the entire saved
    * balance, for the system-triggered auto-purchase path). */
@@ -197,25 +208,47 @@ export function KapookProvider({ children }: { children: ReactNode }) {
   );
 
   const deposit = useCallback(
-    (amount: number) => {
-      if (!state.goal || amount <= 0) return;
-      const savedBefore = state.goal.availableBalance;
-      const goal: KapookGoal = { ...state.goal, availableBalance: savedBefore + amount };
-      if (!goal.goalReachedAt && isGoalTargetReached(goal)) {
-        goal.goalReachedAt = new Date().toISOString();
+    async (savingsAccountId: string, amount: number) => {
+      if (!state.goal) throw new Error("ไม่พบเป้าหมายการออม");
+      if (!account) throw new Error("ไม่พบบัญชีกระปุกออมสลาก");
+      if (amount <= 0) throw new Error("จำนวนเงินไม่ถูกต้อง");
+      // Client-side only - the backend has no equivalent check (its decimal
+      // fields accept any precision) - so this must reject before the
+      // network call, not rely on a server error code.
+      const amountStr = String(amount);
+      if (!hasAtMostTwoDecimals(amountStr)) {
+        throw new Error("จำนวนเงินต้องมีทศนิยมไม่เกิน 2 ตำแหน่ง");
       }
-      // Marked atomically here (rather than via a separate action called
-      // right after deposit()) — a second persist() call from the page
-      // component would read this same stale `state` closure and clobber
-      // the deposit it just wrote, since React hasn't re-rendered yet.
-      if (!goal.salakSuggestionSeen && savedBefore < 1000 && goal.availableBalance >= 1000) {
+      const response: KapookGoalResponse = await api.depositToKapookGoal({
+        kapook_account_id: account.id,
+        savings_account_id: savingsAccountId,
+        amount: amountStr,
+      });
+      // Folded straight from the server's own read-model snapshot - no
+      // client-side recomputation of available_balance/salak_amount/etc.
+      const goal: KapookGoal = {
+        ...state.goal,
+        targetAmount: Number(response.goal_amount),
+        availableBalance: Number(response.available_balance),
+        purchasedAmount: Number(response.salak_amount),
+        purchasedUnits: response.purchased_units,
+        purchasedCount: response.purchased_count,
+        goalReachedAt: response.goal_reached_at ?? null,
+      };
+      // buy_eligible is the server's own flag (real product min-purchase
+      // comparison, not a client-guessed threshold) - salakSuggestionSeen
+      // already guarantees this only ever flips once per goal, regardless
+      // of how many deposits later re-cross the same line.
+      const showSalakSuggestion = !state.hideSalakSuggestion && !goal.salakSuggestionSeen && response.buy_eligible;
+      if (showSalakSuggestion) {
         goal.salakSuggestionSeen = true;
       }
       let next: KapookState = { ...state, goal };
       next = pushTransaction(next, goal.id, "deposit", amount, 0);
       persist(next);
+      return { justReachedGoal: response.target_reached, showSalakSuggestion };
     },
-    [state, persist],
+    [state, persist, account],
   );
 
   // prompt/README.md: fee/quota apply uniformly to every withdrawal — there is
