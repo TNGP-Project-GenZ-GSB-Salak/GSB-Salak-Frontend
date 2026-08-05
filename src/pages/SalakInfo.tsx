@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
 import { Button } from "../components/Button";
 import { PigMascot } from "../components/PigMascot";
@@ -66,6 +66,12 @@ const CONDITIONS = [
 // GSB sales sheets respectively — informational only, no backend needed.
 export function SalakInfo() {
   const navigate = useNavigate();
+  const location = useLocation();
+  // Reused from more than one entry point (Home's promo banner, Salak.tsx's
+  // "ข้อมูลผลิตภัณฑ์" quick action) — the close (X) button should return to
+  // wherever it came from. Defaults to "/salak" so Salak.tsx's existing Link
+  // (which passes no state) keeps its exact current behavior.
+  const backTo = (location.state as { from?: string } | null)?.from ?? "/salak";
   const [fountainKey, setFountainKey] = useState(0);
   const [pigTapping, setPigTapping] = useState(false);
   const [guaranteeOpen, setGuaranteeOpen] = useState(false);
@@ -86,7 +92,7 @@ export function SalakInfo() {
       <header className="page-header">
         <span className="page-header__spacer" />
         <h1 className="page-header__title page-header__title--plain">ข้อมูลสลากดิจิทัล</h1>
-        <button type="button" onClick={() => navigate("/salak")} className="page-header__button" aria-label="ปิด">
+        <button type="button" onClick={() => navigate(backTo)} className="page-header__button" aria-label="ปิด">
           <CloseCircleIcon className="h-7 w-7" />
         </button>
       </header>

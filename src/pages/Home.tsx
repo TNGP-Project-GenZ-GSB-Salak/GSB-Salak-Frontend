@@ -142,6 +142,7 @@ export function Home() {
 
         <Link
           to={kapookState.termsAccepted ? "/kapook" : "/salak/info"}
+          state={kapookState.termsAccepted ? undefined : { from: "/" }}
           data-testid="salak-promo-banner"
           className="home-tip-card"
         >
