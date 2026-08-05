@@ -110,7 +110,7 @@ export function Accounts() {
                   <ArrowIcon />
                 </div>
                 <p className="gradient-card__eyebrow">คงเหลือ</p>
-                <p className="gradient-card__balance">฿{formatTHB(goal?.savedAmount ?? 0)}</p>
+                <p className="gradient-card__balance">฿{formatTHB(goal?.availableBalance ?? 0)}</p>
               </button>
             )}
           </>

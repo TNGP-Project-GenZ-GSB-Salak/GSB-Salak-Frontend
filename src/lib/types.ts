@@ -70,6 +70,33 @@ export interface KapookTermsStatus {
   accepted: boolean;
 }
 
+// Hand-mirrors internal/kapook/http/dto.go's goalResponse verbatim -
+// including available_balance vs. saving_amount, which name DIFFERENT
+// things: saving_amount is cumulative net contribution (never shrinks on a
+// purchase), available_balance is what's actually spendable. Never alias
+// saving_amount as a client-side "savedAmount"/"available" field - that
+// exact mistake already broke two button gates once (see the goal-read
+// model ticket). purchased_units/purchased_count are derived server-side
+// from history, not stored - always reflect worker-driven purchases
+// correctly, whoever bought.
+export interface KapookGoalResponse {
+  id: string;
+  account_id: string;
+  product_id: string;
+  goal_amount: string;
+  saving_amount: string;
+  salak_amount: string;
+  is_active: boolean;
+  goal_reached_at?: string;
+  created_at: string;
+  available_balance: string;
+  target_reached: boolean;
+  countdown_remaining_seconds?: number;
+  purchased_units: number;
+  purchased_count: number;
+  buy_eligible: boolean;
+}
+
 export type LedgerEntryType = "debit" | "credit";
 
 export interface Transaction {

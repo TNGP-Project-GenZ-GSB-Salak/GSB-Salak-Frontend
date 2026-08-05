@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
-import type { SalakProduct } from "../lib/types";
+import type { KapookGoalResponse, SalakProduct } from "../lib/types";
 import { formatTHB, formatDate } from "../lib/format";
-import { cumulativeCommitted, isGoalTargetReached } from "../lib/kapookStore";
 import { AppShell } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
 import { Card } from "../components/Card";
@@ -20,7 +19,7 @@ import { messageForError } from "../lib/kapookErrorMessages";
 // straight to the goalTracker screen and lets *it* own the celebrate
 // bubble/sticker and the goal-reached/salak-suggestion sheets — they're
 // rendered inside `isGoalTracker`, not on the deposit screen itself).
-// The salak-suggestion sheet (first time savedAmount crosses ฿1,000) takes
+// The salak-suggestion sheet (first time availableBalance crosses ฿1,000) takes
 // priority over the goal-reached one if a single deposit triggers both at
 // once — `pendingGoalReachedAfterSuggestion` is how the goal-reached sheet
 // still gets shown right after the suggestion is dismissed.
@@ -45,6 +44,14 @@ const CELEBRATE_DURATION_MS = 3200;
 // rather than instantly spending the whole balance; the same "ถอนเงิน" screen
 // doubles as the countdown bail-out (forced to the full balance there,
 // prompt/README.md §13) — there's no separate action.
+//
+// The goal itself is real (GET /kapook/goals/active), fetched once per visit
+// - not the local fiction in KapookContext's `state.goal`, which
+// deposit/withdraw/buy-from-piggy still read until their own tickets move
+// them onto the real backend. Money fields cross as decimal strings and are
+// coerced to Number only for display (a progress-bar width, a formatted
+// ฿ figure) - never for a value driving a button gate, which come from the
+// server's own flags (target_reached, buy_eligible).
 export function KapookTracker() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -52,6 +59,11 @@ export function KapookTracker() {
   const [products, setProducts] = useState<SalakProduct[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [termsSheetOpen, setTermsSheetOpen] = useState(false);
+
+  // undefined = still loading; null = no active goal (a normal empty
+  // state, not an error - see GET /kapook/goals/active's 200-with-null
+  // contract).
+  const [goal, setGoal] = useState<KapookGoalResponse | null | undefined>(undefined);
 
   const celebrateState = location.state as KapookCelebrateState | null;
   const [celebrate, setCelebrate] = useState(celebrateState?.celebrate ?? false);
@@ -88,28 +100,68 @@ export function KapookTracker() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!state.account) return;
+    let cancelled = false;
+    api
+      .getActiveKapookGoal(state.account.id)
+      .then((g) => !cancelled && setGoal(g))
+      .catch((err) => !cancelled && setLoadError(messageForError(err, "โหลดข้อมูลไม่สำเร็จ")));
+    return () => {
+      cancelled = true;
+    };
+  }, [state.account]);
+
   const productName = useMemo(
-    () => products?.find((p) => p.id === state.goal?.productId)?.name ?? "",
-    [products, state.goal?.productId],
+    () => products?.find((p) => p.id === goal?.product_id)?.name ?? "",
+    [products, goal?.product_id],
   );
 
   if (state.termsAccepted === null) return null;
   if (!state.termsAccepted) return <Navigate to="/kapook/open" replace />;
-  if (!state.goal) return <Navigate to="/kapook/goal/new" replace />;
+  if (goal === undefined) return null;
 
-  const { goal } = state;
+  if (goal === null) {
+    return (
+      <AppShell showNav={false}>
+        <PageHeader title="ออมก่อนซื้อสลาก" variant="close" onAction={() => navigate("/")} />
+        <div className="flex flex-1 flex-col items-center px-6 pb-6 pt-2">
+          {loadError && <p className="error-box">{loadError}</p>}
+          <div className="kapook-hero-card">
+            <span className="home-tip-card__sun" />
+            <TipCloud className="home-tip-card__cloud" />
+            <TipGround className="home-tip-card__ground" />
+            <PigMascot width={120} height={112} animation="bob" className="kapook-hero-card__mascot" />
+          </div>
+          <p className="font-semibold mt-4" style={{ fontSize: 15 }}>
+            ยังไม่มีเป้าหมายการออม
+          </p>
+          <p className="text-muted mt-1 text-center">เริ่มออมก่อนเพื่อนำไปซื้อสลากดิจิทัล</p>
+          <div className="mt-4 w-full">
+            <Button onClick={() => navigate("/kapook/goal/new")} data-testid="kapook-create-goal-action">
+              ตั้งเป้าหมายการออม
+            </Button>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
   // prompt/README.md: opening a new piggy resets its history (and free-
   // withdrawal quota) — a closed goal's old transactions must never show up
   // under the new one, even though they still live in the same flat array.
+  // Reads the local-fiction transaction log (ticket 09 makes this real);
+  // its ids won't match the real goal's until deposit/withdraw/buy are
+  // themselves real, so this list is expected to read empty for now.
   const goalTransactions = state.transactions.filter((t) => t.goalId === goal.id);
-  const reached = isGoalTargetReached(goal);
-  const totalCommitted = cumulativeCommitted(goal);
-  const remainingToTarget = Math.max(0, goal.targetAmount - totalCommitted);
-  const depositResultNote = reached
+  const totalCommitted = Number(goal.saving_amount);
+  const targetAmount = Number(goal.goal_amount);
+  const remainingToTarget = Math.max(0, targetAmount - totalCommitted);
+  const depositResultNote = goal.target_reached
     ? "ออมครบเป้าหมายแล้ว! กดซื้อสลากได้เลย"
     : `เหลืออีก ฿${formatTHB(remainingToTarget)} ถึงเป้าหมาย ยังไม่ได้สลากจนกว่าจะออมครบนะ`;
 
-  const pigAnimation = celebrate ? "celebrate" : reached ? "party" : "bob";
+  const pigAnimation = celebrate ? "celebrate" : goal.target_reached ? "party" : "bob";
 
   return (
     <AppShell showNav={false}>
@@ -118,7 +170,7 @@ export function KapookTracker() {
       <div className="flex flex-col px-4 pb-4">
         {loadError && <p className="error-box">{loadError}</p>}
         <div className="kapook-hero-card">
-          {reached ? (
+          {goal.target_reached ? (
             <PartyBackdrop />
           ) : (
             <>
@@ -152,20 +204,20 @@ export function KapookTracker() {
           <p className="kapook-summary-card__saved" data-testid="kapook-saved">
             ฿{formatTHB(totalCommitted)}
           </p>
-          <p className="kapook-summary-card__target">จากเป้าหมาย ฿{formatTHB(goal.targetAmount)}</p>
-          <ProgressBar value={totalCommitted} max={goal.targetAmount} />
+          <p className="kapook-summary-card__target">จากเป้าหมาย ฿{formatTHB(targetAmount)}</p>
+          <ProgressBar value={totalCommitted} max={targetAmount} />
 
-          {reached && goal.goalReachedAt && (
+          {goal.target_reached && goal.countdown_remaining_seconds !== undefined && (
             <div className="kapook-countdown-box">
               <p className="kapook-countdown-box__label">ระบบจะซื้อสลากให้อัตโนมัติใน</p>
               <p className="kapook-countdown-box__value">
-                <Countdown deadline={new Date(new Date(goal.goalReachedAt).getTime() + 24 * 60 * 60 * 1000).toISOString()} />
+                <Countdown deadline={new Date(Date.now() + goal.countdown_remaining_seconds * 1000).toISOString()} />
               </p>
               <p className="kapook-countdown-box__hint">กดปุ่ม "ซื้อสลาก" ด้านล่างเพื่อเลือกเอง</p>
             </div>
           )}
 
-          <p className="kapook-summary-card__started">เริ่มออมเมื่อ {formatDate(goal.createdAt)}</p>
+          <p className="kapook-summary-card__started">เริ่มออมเมื่อ {formatDate(goal.created_at)}</p>
 
           <div className="kapook-account-row">
             <span className="kapook-account-row__label">บัญชีกระปุกออมสลาก</span>
@@ -180,7 +232,7 @@ export function KapookTracker() {
               พร้อมฝากสลาก
             </span>
             <p className="kapook-split-card__amount" style={{ color: "var(--color-brand)" }}>
-              ฿{formatTHB(goal.savedAmount)}
+              ฿{formatTHB(goal.available_balance)}
             </p>
             <p className="kapook-split-card__meta">ยอดออมที่ใช้ซื้อสลากได้</p>
           </div>
@@ -190,10 +242,10 @@ export function KapookTracker() {
               ซื้อสลากแล้ว
             </span>
             <p className="kapook-split-card__amount" style={{ color: "var(--mymo-cat-salak)" }}>
-              ฿{formatTHB(goal.purchasedAmount)}
+              ฿{formatTHB(goal.salak_amount)}
             </p>
             <p className="kapook-split-card__meta">
-              {goal.purchasedUnits} หน่วย · {goal.purchasedCount} รายการ
+              {goal.purchased_units} หน่วย · {goal.purchased_count} รายการ
             </p>
           </div>
         </div>
@@ -202,7 +254,7 @@ export function KapookTracker() {
           <button
             type="button"
             className="kapook-actions__item"
-            disabled={reached}
+            disabled={goal.target_reached}
             onClick={() => navigate("/kapook/deposit")}
             data-testid="kapook-deposit-action"
           >
@@ -214,7 +266,7 @@ export function KapookTracker() {
           <button
             type="button"
             className="kapook-actions__item"
-            disabled={goal.savedAmount <= 0}
+            disabled={Number(goal.available_balance) <= 0}
             onClick={() => navigate("/kapook/withdraw")}
             data-testid="kapook-withdraw-action"
           >
@@ -226,7 +278,7 @@ export function KapookTracker() {
           <button
             type="button"
             className="kapook-actions__item"
-            disabled={goal.savedAmount < 1000}
+            disabled={!goal.buy_eligible}
             onClick={() => navigate("/kapook/buy")}
             data-testid="kapook-redeem-action"
           >
@@ -274,7 +326,7 @@ export function KapookTracker() {
           <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
             <p className="sheet-panel__title">ออมครบเป้าหมายแล้ว! :)</p>
             <p className="confirm-dialog__message">
-              คุณออมครบ ฿{formatTHB(goal.targetAmount)} แล้ว ต้องการซื้อสลากดิจิทัลด้วยยอดที่ออมได้เลยตอนนี้หรือไม่
+              คุณออมครบ ฿{formatTHB(targetAmount)} แล้ว ต้องการซื้อสลากดิจิทัลด้วยยอดที่ออมได้เลยตอนนี้หรือไม่
             </p>
             <p className="kapook-sheet-note mt-2">หากยังไม่ซื้อ ระบบจะซื้อสลากให้อัตโนมัติภายใน 24 ชั่วโมง</p>
             <div className="mt-4 flex gap-2">

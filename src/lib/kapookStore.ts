@@ -78,7 +78,7 @@ export function msUntilAutoPurchase(goalReachedAt: string | null): number | null
 // purchase). This is what makes the goal-reached countdown persist through a
 // partial purchase instead of resetting.
 export function cumulativeCommitted(goal: KapookGoal): number {
-  return goal.savedAmount + goal.purchasedAmount;
+  return goal.availableBalance + goal.purchasedAmount;
 }
 
 export function goalProgressPct(goal: KapookGoal): number {
@@ -96,6 +96,6 @@ export function isGoalTargetReached(goal: KapookGoal): boolean {
 // backend balance (a real debit), so only the piggy's still-saved amount
 // needs subtracting here on top of whatever the backend reports.
 export function computeAvailableBalance(realBalance: number, goal: KapookGoal | null): number {
-  const reservedForGoal = goal ? goal.savedAmount : 0;
+  const reservedForGoal = goal ? goal.availableBalance : 0;
   return Math.max(0, realBalance - reservedForGoal);
 }

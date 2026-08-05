@@ -45,7 +45,13 @@ interface KapookContextValue {
   // /kapook/terms/accept). Takes no KYC data - the wizard's identity steps
   // are review-only theatre; nothing they display is ever transmitted.
   acceptTerms: () => Promise<void>;
-  createGoal: (targetAmount: number, productId: string) => void;
+  // Persists the goal server-side (POST /kapook/goals) - the goal itself is
+  // now real and survives a reload. Also still writes the local fiction
+  // goal deposit/withdraw/buy-from-piggy read, until their own tickets move
+  // them onto the real backend too; expect the two to disagree in the
+  // meantime (a deliberate, temporary inconsistency - see the goal-creation
+  // ticket's own notes).
+  createGoal: (targetAmount: number, productId: string) => Promise<void>;
   deposit: (amount: number) => void;
   withdraw: (amount: number) => void;
   /** Buys Salak using `amount` from the piggy (defaults to the entire saved
@@ -88,7 +94,7 @@ function pushTransaction(
 // This deliberately does NOT re-derive "reached" from the live
 // cumulativeCommitted total: a forced full withdrawal during the
 // auto-purchase countdown (the only way to bail out — KapookWithdraw.tsx)
-// drains savedAmount to 0 while purchasedAmount is still 0, which would
+// drains availableBalance to 0 while purchasedAmount is still 0, which would
 // make a *live* isGoalTargetReached check go false again (cumulative drops
 // back under target) and wrongly leave the goal open forever with the
 // countdown still ticking. Purchases never hit this — moving money from
@@ -97,7 +103,7 @@ function pushTransaction(
 // prompt/README.md §14's "withdrawing to 0 during the countdown closes the
 // piggy immediately, because the target has been reached" is describing.
 function applyClosingRule(goal: KapookGoal): KapookGoal | null {
-  if (goal.savedAmount <= 0 && goal.goalReachedAt !== null) return null;
+  if (goal.availableBalance <= 0 && goal.goalReachedAt !== null) return null;
   return goal;
 }
 
@@ -136,7 +142,11 @@ export function KapookProvider({ children }: { children: ReactNode }) {
     api.listAccounts().then((accounts) => {
       if (cancelled) return;
       const kapookAccount = accounts.find((a) => a.type === "kapook");
-      setAccount(kapookAccount ? { accountNumber: kapookAccount.account_number, openedAt: kapookAccount.created_at } : null);
+      setAccount(
+        kapookAccount
+          ? { id: kapookAccount.id, accountNumber: kapookAccount.account_number, openedAt: kapookAccount.created_at }
+          : null,
+      );
     });
     api.getKapookTermsStatus().then((status) => {
       if (!cancelled) setTermsAccepted(status.accepted);
@@ -160,14 +170,20 @@ export function KapookProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const createGoal = useCallback(
-    (targetAmount: number, productId: string) => {
+    async (targetAmount: number, productId: string) => {
+      if (!account) throw new Error("ไม่พบบัญชีกระปุกออมสลาก");
+      await api.createKapookGoal({
+        account_id: account.id,
+        product_id: productId,
+        goal_amount: String(targetAmount),
+      });
       persist({
         ...state,
         goal: {
           id: generateId(),
           productId,
           targetAmount,
-          savedAmount: 0,
+          availableBalance: 0,
           purchasedAmount: 0,
           purchasedUnits: 0,
           purchasedCount: 0,
@@ -177,14 +193,14 @@ export function KapookProvider({ children }: { children: ReactNode }) {
         },
       });
     },
-    [state, persist],
+    [state, persist, account],
   );
 
   const deposit = useCallback(
     (amount: number) => {
       if (!state.goal || amount <= 0) return;
-      const savedBefore = state.goal.savedAmount;
-      const goal: KapookGoal = { ...state.goal, savedAmount: savedBefore + amount };
+      const savedBefore = state.goal.availableBalance;
+      const goal: KapookGoal = { ...state.goal, availableBalance: savedBefore + amount };
       if (!goal.goalReachedAt && isGoalTargetReached(goal)) {
         goal.goalReachedAt = new Date().toISOString();
       }
@@ -192,7 +208,7 @@ export function KapookProvider({ children }: { children: ReactNode }) {
       // right after deposit()) — a second persist() call from the page
       // component would read this same stale `state` closure and clobber
       // the deposit it just wrote, since React hasn't re-rendered yet.
-      if (!goal.salakSuggestionSeen && savedBefore < 1000 && goal.savedAmount >= 1000) {
+      if (!goal.salakSuggestionSeen && savedBefore < 1000 && goal.availableBalance >= 1000) {
         goal.salakSuggestionSeen = true;
       }
       let next: KapookState = { ...state, goal };
@@ -210,7 +226,7 @@ export function KapookProvider({ children }: { children: ReactNode }) {
     (amount: number) => {
       if (!state.goal || amount <= 0) return;
       const fee = withdrawFee(amount, state);
-      const withdrawn: KapookGoal = { ...state.goal, savedAmount: Math.max(0, state.goal.savedAmount - amount) };
+      const withdrawn: KapookGoal = { ...state.goal, availableBalance: Math.max(0, state.goal.availableBalance - amount) };
       const closed = applyClosingRule(withdrawn) === null;
       const goal = closed ? { ...withdrawn, goalReachedAt: null } : withdrawn;
       let next: KapookState = { ...state, goal: closed ? null : goal };
@@ -223,8 +239,8 @@ export function KapookProvider({ children }: { children: ReactNode }) {
   const confirmGoalPurchase = useCallback(
     async (amount?: number): Promise<BuySalakResponse> => {
       if (!state.goal) throw new Error("ไม่พบเป้าหมายการออม");
-      const spendAmount = amount ?? state.goal.savedAmount;
-      if (spendAmount <= 0 || spendAmount > state.goal.savedAmount) {
+      const spendAmount = amount ?? state.goal.availableBalance;
+      if (spendAmount <= 0 || spendAmount > state.goal.availableBalance) {
         throw new Error("จำนวนเงินไม่ถูกต้อง");
       }
       if (purchaseInFlight.current) throw new Error("กำลังทำรายการอยู่");
@@ -244,7 +260,7 @@ export function KapookProvider({ children }: { children: ReactNode }) {
         });
         const purchased: KapookGoal = {
           ...state.goal,
-          savedAmount: state.goal.savedAmount - spendAmount,
+          availableBalance: state.goal.availableBalance - spendAmount,
           purchasedAmount: state.goal.purchasedAmount + spendAmount,
           purchasedUnits: state.goal.purchasedUnits + receipt.units,
           purchasedCount: state.goal.purchasedCount + 1,
@@ -281,7 +297,7 @@ export function KapookProvider({ children }: { children: ReactNode }) {
     const id = window.setInterval(() => {
       const remaining = msUntilAutoPurchase(state.goal!.goalReachedAt);
       if (remaining !== null && remaining <= 0 && !purchaseInFlight.current) {
-        const spent = state.goal!.savedAmount;
+        const spent = state.goal!.availableBalance;
         confirmGoalPurchase()
           .then(() => {
             setState((prev) => {

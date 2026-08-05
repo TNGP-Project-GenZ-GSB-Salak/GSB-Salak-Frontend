@@ -96,7 +96,7 @@ export function KapookDeposit() {
   async function handleConfirm() {
     if (!canSend) return;
     setError(null);
-    const savedBefore = goal.savedAmount;
+    const savedBefore = goal.availableBalance;
     const savedAfter = savedBefore + amount;
     const justReached = cumulativeCommitted(goal) + amount >= goal.targetAmount;
     const crossedMinimum = !state.hideSalakSuggestion && !goal.salakSuggestionSeen && savedBefore < 1000 && savedAfter >= 1000;
@@ -144,7 +144,7 @@ export function KapookDeposit() {
                 <p className="gradient-card__label">{state.account?.accountNumber ?? ""}</p>
                 <p className="gradient-card__meta mt-1">บัญชีกระปุกออมสลาก</p>
               </div>
-              <p className="gradient-card__balance">฿{formatTHB(goal.savedAmount)}</p>
+              <p className="gradient-card__balance">฿{formatTHB(goal.availableBalance)}</p>
             </div>
           </div>
 

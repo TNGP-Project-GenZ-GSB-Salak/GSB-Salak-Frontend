@@ -13,6 +13,7 @@
 // Account directly so consumers don't depend on the backend's snake_case
 // field names.
 export interface KapookAccountInfo {
+  id: string;
   accountNumber: string;
   openedAt: string;
 }
@@ -21,7 +22,7 @@ export interface KapookGoal {
   id: string;
   productId: string;
   targetAmount: number;
-  savedAmount: number;
+  availableBalance: number;
   // Matches the prototype's tracker screen, which lets a purchase happen with
   // whatever is currently saved at any time — not gated on reaching the full
   // target — and separately tallies what's already been converted to Salak
@@ -33,7 +34,7 @@ export interface KapookGoal {
   goalReachedAt: string | null;
   // Whether the goalDeposit "ยินดีด้วย ยอดออมของคุณถึงขั้นต่ำสำหรับซื้อสลากแล้ว"
   // sheet (prompt/CLAUDE_CODE_PROMPT_TH.md screen 11) has already been shown
-  // for this goal — it only ever fires once, the first time savedAmount
+  // for this goal — it only ever fires once, the first time availableBalance
   // crosses ฿1,000.
   salakSuggestionSeen: boolean;
 }

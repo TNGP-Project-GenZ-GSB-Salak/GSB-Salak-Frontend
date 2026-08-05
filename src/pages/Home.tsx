@@ -5,8 +5,6 @@ import type { Account } from "../lib/types";
 import { formatTHB, maskAccountNumber } from "../lib/format";
 import { findPrimaryAccount } from "../lib/accounts";
 import { useAuth } from "../context/AuthContext";
-import { useKapook } from "../context/KapookContext";
-import { computeAvailableBalance } from "../lib/kapookStore";
 import { AppShell } from "../components/AppShell";
 import { PigMascot, TipCloud, TipGround } from "../components/PigMascot";
 
@@ -58,12 +56,15 @@ const SALAK_TIPS = [
 
 export function Home() {
   const { user } = useAuth();
-  const { state: kapookState } = useKapook();
   const [savings, setSavings] = useState<Account | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [showBalance, setShowBalance] = useState(true);
   const [homeTip] = useState(() => SALAK_TIPS[Math.floor(Math.random() * SALAK_TIPS.length)]);
-  const availableBalance = savings ? computeAvailableBalance(Number(savings.balance), kapookState.goal) : 0;
+  // The savings balance the server reports already reflects any real Kapook
+  // deposit (a real debit) - subtracting the goal's saved amount again would
+  // double-count money that's already left the account. See the goal-read
+  // model ticket's home-screen fix.
+  const availableBalance = savings ? Number(savings.balance) : 0;
 
   useEffect(() => {
     let cancelled = false;

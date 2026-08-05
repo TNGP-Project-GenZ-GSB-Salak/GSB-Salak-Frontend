@@ -4,6 +4,7 @@ import type {
   Account,
   BuySalakResponse,
   Holding,
+  KapookGoalResponse,
   KapookTermsStatus,
   LoginResult,
   SalakProduct,
@@ -126,6 +127,25 @@ export function getKapookTermsStatus(): Promise<KapookTermsStatus> {
 
 export function acceptKapookTerms(): Promise<KapookTermsStatus> {
   return apiFetch<KapookTermsStatus>("/kapook/terms/accept", { method: "POST" });
+}
+
+// goal_amount crosses as a decimal string, matching every other money field
+// - never a number.
+export function createKapookGoal(input: {
+  account_id: string;
+  product_id: string;
+  goal_amount: string;
+}): Promise<KapookGoalResponse> {
+  return apiFetch<KapookGoalResponse>("/kapook/goals", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+// Resolves to null when accountId has no active goal - a normal empty
+// state, not an error (GET /kapook/goals/active's 200-with-null contract).
+export function getActiveKapookGoal(accountId: string): Promise<KapookGoalResponse | null> {
+  return apiFetch<KapookGoalResponse | null>(`/kapook/goals/active?account_id=${accountId}`);
 }
 
 export function listTransactions(

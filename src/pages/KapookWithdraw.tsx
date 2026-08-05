@@ -60,7 +60,7 @@ export function KapookWithdraw() {
   const forcedFull = !!state.goal?.goalReachedAt;
 
   useEffect(() => {
-    if (forcedFull && state.goal) setAmount(state.goal.savedAmount);
+    if (forcedFull && state.goal) setAmount(state.goal.availableBalance);
   }, [forcedFull, state.goal]);
 
   const fee = useMemo(() => withdrawFee(amount, state), [amount, state]);
@@ -81,7 +81,7 @@ export function KapookWithdraw() {
   // to see the success receipt. Only redirect away before that point.
   if (!state.goal && step !== "success") return <Navigate to="/kapook" replace />;
   const goal = state.goal;
-  const canWithdraw = !!goal && amount > 0 && amount <= goal.savedAmount;
+  const canWithdraw = !!goal && amount > 0 && amount <= goal.availableBalance;
   const net = amount - fee;
   // A withdrawal that empties the piggy closes the goal (state.goal -> null)
   // as soon as it's confirmed — after that, `withdrawFee`/`fee` above would
@@ -104,7 +104,7 @@ export function KapookWithdraw() {
   function applyKeypadValue(rawDigits: string) {
     setKeypadInput(rawDigits);
     const n = parseInt(rawDigits || "0", 10) || 0;
-    setAmount(Math.min(n, goal?.savedAmount ?? 0));
+    setAmount(Math.min(n, goal?.availableBalance ?? 0));
   }
 
   function keypadCancel() {
@@ -141,7 +141,7 @@ export function KapookWithdraw() {
                   <p className="gradient-card__label">บัญชีกระปุกออมสลาก</p>
                   <p className="gradient-card__meta mt-1">{state.account?.accountNumber ?? ""}</p>
                 </div>
-                <p className="gradient-card__balance mt-1">฿{formatTHB(goal?.savedAmount ?? 0)}</p>
+                <p className="gradient-card__balance mt-1">฿{formatTHB(goal?.availableBalance ?? 0)}</p>
               </div>
             </div>
 
@@ -170,7 +170,7 @@ export function KapookWithdraw() {
                 {formatTHB(amount)}
               </span>
             </button>
-            <p className="text-muted text-center">ถอนได้สูงสุด ฿{formatTHB(goal?.savedAmount ?? 0)}</p>
+            <p className="text-muted text-center">ถอนได้สูงสุด ฿{formatTHB(goal?.availableBalance ?? 0)}</p>
             {forcedFull && (
               <p className="text-muted text-center">ถอนเต็มจำนวนเนื่องจากอยู่ในช่วงนับถอยหลังซื้อสลากอัตโนมัติ</p>
             )}

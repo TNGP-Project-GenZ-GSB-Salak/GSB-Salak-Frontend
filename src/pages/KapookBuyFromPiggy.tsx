@@ -96,7 +96,7 @@ export function KapookBuyFromPiggy() {
     setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
   }
 
-  // A *full* purchase (amount === savedAmount) that also completes the
+  // A *full* purchase (amount === availableBalance) that also completes the
   // target closes the goal (state.goal becomes null) as soon as the context
   // updates — but the user still needs to see the success receipt for the
   // purchase that just happened. Only redirect away before that point.
@@ -106,7 +106,7 @@ export function KapookBuyFromPiggy() {
   // NOT silently rounded down — it's validated, and "เลื่อนเพื่อส่ง" stays
   // disabled with an error message until it's an exact multiple of ฿1,000.
   const notMultipleOf1000 = amount > 0 && amount % 1000 !== 0;
-  const canSend = !!goal && amount > 0 && amount <= goal.savedAmount && !notMultipleOf1000;
+  const canSend = !!goal && amount > 0 && amount <= goal.availableBalance && !notMultipleOf1000;
   const units = product ? Math.floor(amount / Number(product.unit_price)) : 0;
 
   function openKeypad() {
@@ -122,7 +122,7 @@ export function KapookBuyFromPiggy() {
   function applyKeypadValue(rawDigits: string) {
     setKeypadInput(rawDigits);
     const n = parseInt(rawDigits || "0", 10) || 0;
-    setAmount(Math.min(n, goal?.savedAmount ?? 0));
+    setAmount(Math.min(n, goal?.availableBalance ?? 0));
   }
 
   function keypadCancel() {
@@ -161,7 +161,7 @@ export function KapookBuyFromPiggy() {
                   <p className="gradient-card__label">บัญชีกระปุกออมสลาก</p>
                   <p className="gradient-card__meta mt-1">{state.account?.accountNumber ?? ""}</p>
                 </div>
-                <p className="gradient-card__balance mt-1">฿{formatTHB((goal?.savedAmount ?? 0))}</p>
+                <p className="gradient-card__balance mt-1">฿{formatTHB((goal?.availableBalance ?? 0))}</p>
               </div>
             </div>
 
@@ -188,7 +188,7 @@ export function KapookBuyFromPiggy() {
                 กรุณาระบุจำนวนเป็นจำนวนเต็มพันบาท (เช่น 1,000, 2,000)
               </p>
             ) : (
-              <p className="text-muted text-center">ยอดพร้อมฝากสลาก ฿{formatTHB(goal?.savedAmount ?? 0)}</p>
+              <p className="text-muted text-center">ยอดพร้อมฝากสลาก ฿{formatTHB(goal?.availableBalance ?? 0)}</p>
             )}
 
             <div className="transfer-tags">
