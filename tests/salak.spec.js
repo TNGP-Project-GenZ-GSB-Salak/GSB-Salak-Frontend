@@ -23,8 +23,8 @@ test.describe("salak overview", () => {
 
     await expect(page.getByTestId("product-row")).toHaveCount(2);
     const productNames = await page.getByTestId("product-name").allTextContents();
-    expect(productNames).toContain("Digital Salak 1-Year");
-    expect(productNames).toContain("Digital Salak 2-Year");
+    expect(productNames).toContain("สลากดิจิทัล 1 ปี");
+    expect(productNames).toContain("สลากดิจิทัล 2 ปี");
 
     await shoot(page, "verified");
   });

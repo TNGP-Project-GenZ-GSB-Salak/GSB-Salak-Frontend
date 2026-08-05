@@ -35,7 +35,7 @@ test.describe("transaction history", () => {
     const rows = page.getByTestId("transaction-row");
     await expect(rows.first()).toBeVisible();
     const descriptions = await rows.allTextContents();
-    expect(descriptions.some((text) => /buy digital salak/i.test(text))).toBe(true);
+    expect(descriptions.some((text) => /ซื้อสลากดิจิทัล/.test(text))).toBe(true);
 
     await shoot(page, "verified");
   });

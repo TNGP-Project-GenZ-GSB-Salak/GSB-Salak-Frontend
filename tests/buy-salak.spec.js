@@ -77,6 +77,6 @@ test.describe("buy salak", () => {
     await page.waitForURL("/salak");
     await shoot(page, "back-to-salak");
 
-    await expect(page.getByTestId("holdings-table")).toContainText("Digital Salak 1-Year");
+    await expect(page.getByTestId("holdings-table")).toContainText("สลากดิจิทัล 1 ปี");
   });
 });
