@@ -4,6 +4,7 @@ import * as api from "../lib/api";
 import type { Account, BuySalakResponse, SalakProduct } from "../lib/types";
 import { formatTHB, maskAccountNumber } from "../lib/format";
 import { findPrimaryAccount } from "../lib/accounts";
+import { messageForError } from "../lib/kapookErrorMessages";
 import { useAuth } from "../context/AuthContext";
 import { AppShell } from "../components/AppShell";
 import { PageHeader } from "../components/PageHeader";
@@ -51,7 +52,7 @@ export function BuySalak() {
         setFundingAccount(findPrimaryAccount(accounts) ?? null);
         setSalakAccount(accounts.find((a) => a.type === "salak") ?? null);
       })
-      .catch((err) => !cancelled && setError(err instanceof Error ? err.message : "โหลดข้อมูลไม่สำเร็จ"));
+      .catch((err) => !cancelled && setError(messageForError(err, "โหลดข้อมูลไม่สำเร็จ")));
 
     return () => {
       cancelled = true;
@@ -117,7 +118,7 @@ export function BuySalak() {
       setReceipt(result);
       setStep("success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ทำรายการไม่สำเร็จ");
+      setError(messageForError(err, "ทำรายการไม่สำเร็จ"));
     } finally {
       setSubmitting(false);
     }
