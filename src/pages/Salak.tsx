@@ -9,13 +9,12 @@ import { PageHeader } from "../components/PageHeader";
 import { HoldingCard } from "../components/HoldingCard";
 import { Countdown } from "../components/Countdown";
 
-// The prototype's 4-icon quick-action row. "ซื้อสลาก" (-> the buy-list screen)
-// and "ข้อมูลผลิตภัณฑ์" (-> the salakInfo screen) are wired; the rest (issue
-// history / settings) have no corresponding screens built yet and stay
-// decorative.
+// The prototype's 4-icon quick-action row. "ซื้อสลาก" and "ข้อมูลผลิตภัณฑ์" both go
+// to the buy-list screen; the rest (issue history / settings) have no
+// corresponding screens built yet and stay decorative.
 const SALAK_QUICK_ACTIONS = [
   { label: "ซื้อสลาก", icon: BuyIcon, to: "/salak/buy", testId: "salak-buy-action" },
-  { label: "ข้อมูลผลิตภัณฑ์", icon: InfoIcon, to: "/salak/info", testId: "salak-info-action" },
+  { label: "ข้อมูลผลิตภัณฑ์", icon: InfoIcon, to: "/salak/buy", testId: "salak-info-action" },
   { label: "ประวัติการถอน", icon: ScheduleIcon, to: null, testId: undefined },
   { label: "ตั้งค่า", icon: GearIcon, to: null, testId: undefined },
 ] as const;
