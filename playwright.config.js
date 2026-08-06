@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { KAPOOK_COUNTDOWN_DURATION, REGISTRATION_SAVINGS_STARTING_BALANCE } from "./tests/helpers/fixtures.js";
+import { KAPOOK_COUNTDOWN_DURATION, KAPOOK_WORKER_TICK_INTERVAL, REGISTRATION_SAVINGS_STARTING_BALANCE } from "./tests/helpers/fixtures.js";
 
 // Every spec now registers its own user (see tests/helpers/auth.js's
 // registerFreshUser), so specs no longer contend over shared demo-account
@@ -40,7 +40,7 @@ export default defineConfig({
       // "pending".
       command: "go run ./cmd/worker",
       cwd: "../GSB-Salak-Backend",
-      env: { ...process.env, KAPOOK_COUNTDOWN_DURATION },
+      env: { ...process.env, KAPOOK_COUNTDOWN_DURATION, KAPOOK_WORKER_TICK_INTERVAL },
       reuseExistingServer: !process.env.CI,
       timeout: 30_000,
     },

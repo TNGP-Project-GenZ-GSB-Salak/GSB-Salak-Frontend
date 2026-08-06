@@ -14,6 +14,17 @@ export const SALAK_ACCOUNT_NUMBER = "4001000111";
 // "counting down, not yet purchased" state before it expires.
 export const KAPOOK_COUNTDOWN_DURATION = "10s";
 
+// Passed to the worker webServer entry only. The worker's own production
+// default (KAPOOK_WORKER_TICK_INTERVAL unset -> 1 minute) would otherwise
+// dominate KAPOOK_COUNTDOWN_DURATION above once auto-purchase specs exist -
+// the countdown could finish in 10s but then sit for up to another minute
+// before the worker's next tick even looks at it. Short enough that a real
+// auto-purchase test resolves in a handful of seconds after the countdown
+// expires, not disruptively fast (a worker ticking every few seconds in a
+// real deployment would be wasteful, but this only ever applies to the test
+// env).
+export const KAPOOK_WORKER_TICK_INTERVAL = "3s";
+
 // Funds every freshly-registered test user's savings account, so specs that
 // buy Salak or deposit into a Kapook goal don't have to seed a balance
 // themselves. Passed to the api webServer entry only (registration is the
