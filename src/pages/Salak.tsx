@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type SVGProps } from "react";
+import { useCallback, useEffect, useRef, useState, type SVGProps } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import * as api from "../lib/api";
 import type { Account, Holding, KapookGoalResponse, SalakProduct } from "../lib/types";
@@ -28,6 +28,11 @@ export function Salak() {
   const [products, setProducts] = useState<SalakProduct[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [goal, setGoal] = useState<KapookGoalResponse | null>(null);
+  // Tracks whether the last loadGoal() saw an active goal, so refreshHoldings
+  // fires exactly once at the active-to-closed transition (a purchase could
+  // have just happened) - never on a plain mount with no goal at all, and
+  // never again on every subsequent poll tick while already closed.
+  const hadActiveGoalRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,6 +62,21 @@ export function Salak() {
     };
   }, []);
 
+  // Re-fetches the salak account + its holdings - called once at the
+  // active-to-closed goal transition below, since that's the only moment a
+  // new holding could have just been minted by the worker's auto-purchase.
+  const refreshHoldings = useCallback(() => {
+    api
+      .listAccounts()
+      .then((accounts) => {
+        const account = accounts.find((a) => a.type === "salak") ?? null;
+        setSalakAccount(account);
+        return account ? api.listHoldings(account.id) : Promise.resolve([]);
+      })
+      .then(setHoldings)
+      .catch((err) => setError(err instanceof Error ? err.message : "โหลดข้อมูลไม่สำเร็จ"));
+  }, []);
+
   // Mirrors KapookTracker.tsx's loadGoal - the single source of truth for the
   // goal, reused on mount, on the Countdown's own onExpire, and by the poll
   // below, so the goal card (and the auto-purchase-notice banner it feeds via
@@ -68,9 +88,15 @@ export function Salak() {
       .then((g) => {
         setGoal(g);
         reportGoalObservation(g);
+        if (g) {
+          hadActiveGoalRef.current = true;
+        } else if (hadActiveGoalRef.current) {
+          hadActiveGoalRef.current = false;
+          refreshHoldings();
+        }
       })
       .catch((err) => setError(err instanceof Error ? err.message : "โหลดข้อมูลไม่สำเร็จ"));
-  }, [kapookState.account, reportGoalObservation]);
+  }, [kapookState.account, reportGoalObservation, refreshHoldings]);
 
   useEffect(() => {
     loadGoal();

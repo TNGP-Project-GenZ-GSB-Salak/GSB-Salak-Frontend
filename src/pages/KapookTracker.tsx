@@ -13,6 +13,7 @@ import { BottomSheet } from "../components/BottomSheet";
 import { PigMascot, PartyBackdrop, CelebrateStickerIcon, TipCloud, TipGround, type CelebrateSticker } from "../components/PigMascot";
 import { useKapook } from "../context/KapookContext";
 import { messageForError } from "../lib/kapookErrorMessages";
+import piggyBankIcon from "../assets/piggy-bank.png";
 
 // State handed from KapookDeposit.tsx's slide-to-confirm success (matches
 // prompt/prototype-reference.html's `completeSlideAction`, which navigates
@@ -553,13 +554,27 @@ function SmallCheckIcon() {
   );
 }
 
+// The exact piggy-bank glyph the user supplied (src/assets/piggy-bank.png) -
+// rendered via a CSS mask rather than <img> so it still recolors through
+// currentColor like every other action icon (kapook-actions__icon's own
+// color, including its :disabled gray), instead of staying flat black.
 function SaveIcon(props: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} {...props}>
-      <path d="M12 4v11" strokeLinecap="round" />
-      <path d="M16.5 11.5 12 16l-4.5-4.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M5 19h14" strokeLinecap="round" />
-    </svg>
+    <span
+      className={props.className}
+      style={{
+        display: "inline-block",
+        backgroundColor: "currentColor",
+        WebkitMaskImage: `url(${piggyBankIcon})`,
+        maskImage: `url(${piggyBankIcon})`,
+        WebkitMaskSize: "contain",
+        maskSize: "contain",
+        WebkitMaskRepeat: "no-repeat",
+        maskRepeat: "no-repeat",
+        WebkitMaskPosition: "center",
+        maskPosition: "center",
+      }}
+    />
   );
 }
 

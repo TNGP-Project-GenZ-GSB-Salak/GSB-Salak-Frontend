@@ -177,7 +177,7 @@ export function KapookBuyFromPiggy() {
                   <p className="gradient-card__label">{salakAccount ? maskAccountNumber(salakAccount.account_number) : ""}</p>
                   <p className="gradient-card__meta mt-1">{product?.name ?? ""}</p>
                 </div>
-                <p className="gradient-card__balance">฿{formatTHB(salakAccount!.balance)}</p>
+                <p className="gradient-card__balance">฿{salakAccount ? formatTHB(salakAccount.balance) : "0.00"}</p>
               </div>
             </div>
 
