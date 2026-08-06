@@ -77,7 +77,7 @@ export function KapookDeposit() {
   if (goal === undefined) return null;
   if (!goal) return <Navigate to="/kapook" replace />;
   const remainingToTarget = Math.max(0, Number(goal.goal_amount) - Number(goal.saving_amount));
-  const availableBalance = sourceAccount ? Math.max(0, Number(sourceAccount.balance) - Number(goal.available_balance)) : 0;
+  const availableBalance = sourceAccount ? Number(sourceAccount.balance) : 0;
   const depositCap = Math.min(remainingToTarget, availableBalance);
   const cappedByBalance = availableBalance < remainingToTarget;
   const canSend = amount > 0 && amount <= depositCap;
@@ -209,9 +209,7 @@ export function KapookDeposit() {
                   <p className="account-picker-row__name">บัญชีเงินฝากเผื่อเรียก</p>
                   <p className="account-picker-row__mask">{maskAccountNumber(a.account_number)}</p>
                 </div>
-                <p className="account-picker-row__balance">
-                  ฿{formatTHB(Math.max(0, Number(a.balance) - Number(goal.available_balance)))}
-                </p>
+                <p className="account-picker-row__balance">฿{formatTHB(Number(a.balance))}</p>
               </button>
             ))}
           </div>
